@@ -42,11 +42,19 @@ object MonocleBuild extends Build {
     file("."),
     settings = buildSettings ++ Seq(
       publishArtifact := false
-  )) aggregate(exercice)
+  )) aggregate(exercice, response)
 
   lazy val exercice: Project = Project(
     "exercice",
     file("exercice"),
+    settings = buildSettings ++ Seq(
+      libraryDependencies ++= Seq(scalaz, scalaCheckBinding, specs2Scalacheck, scalazSpec2)
+    )
+  )
+
+  lazy val response: Project = Project(
+    "response",
+    file("response"),
     settings = buildSettings ++ Seq(
       libraryDependencies ++= Seq(scalaz, scalaCheckBinding, specs2Scalacheck, scalazSpec2)
     )
