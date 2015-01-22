@@ -1,3 +1,5 @@
+import scala.annotation.tailrec
+
 object Ch03Nel {
 
   sealed trait NeList[+A]
