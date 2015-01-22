@@ -20,13 +20,13 @@ object List {
   //exercise 3.2
   def tail[A](l: List[A]): List[A] = l match {
     case Nil => Nil
-    case Cons(h,t) => t
+    case Cons(x, t) => t
   }
 
   //exercise 3.3
   def setHead[A](l: List[A], a: A): List[A] = l match {
     case Nil => Nil
-    case Cons(h, t) => Cons(h, t)
+    case Cons(h, t) => Cons(a, t)
   }
 
   //exercise 3.4
@@ -162,12 +162,11 @@ object List {
   @tailrec
   def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = sub match {
     case Nil => true
-    case Cons(a, as) => {List.dropWhile(sup)(x => x != a) match {
+    case Cons(a, as) => List.dropWhile(sup)(x => x != a) match {
         case Nil => false
         case Cons(a1, Nil) => as == Nil
         case Cons(a1, Cons(a2, t)) => isInitialSegment(as, Cons(a2, t)) || hasSubsequence(Cons(a2, t), sub)
       }
-    }
   }
 
 }
