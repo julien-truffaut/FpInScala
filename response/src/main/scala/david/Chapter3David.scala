@@ -1,3 +1,5 @@
+package david
+
 import scala.annotation.tailrec
 
 object Ch03Nel {
