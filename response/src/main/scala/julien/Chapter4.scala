@@ -1,16 +1,31 @@
-package fp
-
+package julien
 
 object Chapter4Option {
 
   sealed trait Option[+A] {
-    def map[B](f: A => B): Option[B] = ???
-    def flatMap[B](f: A => Option[B]): Option[B] = ???
-    def getOrElse[B >: A](default: => B): B = ???
-    def orElse[B >: A](ob: => Option[B]): Option[B] = ???
-    def filter(f: A => Boolean): Option[A] = ???
+    def cata[B](f: A => B, b: => B): B = this match {
+      case None => b
+      case Some(a) => f(a)
+    }
+
+    def map[B](f: A => B): Option[B] =
+      cata(a => Some(f(a)), None)
+
+    def flatMap[B](f: A => Option[B]): Option[B] =
+      cata(f, None)
+
+    def getOrElse[B >: A](default: => B): B =
+      cata(identity, default)
+
+    def orElse[B >: A](ob: => Option[B]): Option[B] =
+      cata(_ => this, ob)
+
+    def filter(f: A => Boolean): Option[A] =
+      flatMap(a => if (f(a)) Some(a) else None)
   }
+
   case class Some[+A](get: A) extends Option[A]
+
   case object None extends Option[Nothing]
 
   def mean(xs: Seq[Double]): Option[Double] =
@@ -18,49 +33,67 @@ object Chapter4Option {
     else Some(xs.sum / xs.length)
 
 
-
   // 4.1 Implements Option functions, better use getOrElse and map
 
 
   // 4.2 Implement the variance function in terms of flatMap.
   // If the mean of a sequence is m, the variance is the mean of math.pow(x - m, 2) for each element x in the sequence
-  def variance(xs: Seq[Double]): Option[Double] = ???
+  def variance(xs: Seq[Double]): Option[Double] = // TODO why flatMap ???
+    mean(xs).map(m => xs.foldLeft(0: Double)((sum, x) => sum + math.pow(x - m, 2)))
 
 
   def Try[A](a: => A): Option[A] =
     try Some(a)
-    catch { case e: Exception => None }
+    catch {
+      case e: Exception => None
+    }
 
   // 4.3 Write a generic function map2 that combines two Option values using a binary function.
   // If either Option value is None, then the return value is too. Here is its signature:
-  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = ???
+  def map2[A, B, C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] =
+    a.flatMap(_a => b.map(f(_a, _)))
 
 
   // 4.4 Write a function sequence that combines a list of Options into one Option containing
   // a list of all the Some values in the original list. If the original list contains None even
   // once, the result of the function should be None; otherwise the result should be Some with a
   // list of all the values. Here is its signature:
-  def sequence[A](a: List[Option[A]]): Option[List[A]] = ???
+  def sequence[A](as: List[Option[A]]): Option[List[A]] =
+    as.foldRight(None: Option[List[A]])(map2(_, _)(_ :: _)) // underscore land
 
 
   def parseInts(a: List[String]): Option[List[Int]] =
     sequence(a map (i => Try(i.toInt)))
 
 
-
   // 4.5 Implement traverse. It’s straightforward to do using map and sequence, but try for a more efficient
   // implementation that only looks at the list once. In fact, implement sequence in terms of traverse.
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = ???
+  def traverse[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] =
+    as.foldRight(None: Option[List[B]])((a, acc) => map2(f(a), acc)(_ :: _))
+
+  def sequence2[A](as: List[Option[A]]): Option[List[A]] =
+    traverse(as)(identity)
 
 }
 
-object Chapter4Either {
+object Chapter4Either{
 
   sealed trait Either[+E, +A] {
-    def map[B](f: A => B): Either[E, B] = ???
-    def flatMap[EE >: E, B](f: A => Either[EE, B]): Either[EE, B] = ???
-    def orElse[EE >: E,B >: A](b: => Either[EE, B]): Either[EE, B] = ???
-    def map2[EE >: E, B, C](b: Either[EE, B])(f: (A, B) => C): Either[EE, C] = ???
+    def fold[B](f: E => B, g: A => B): B = this match {
+      case Left(e)  => f(e)
+      case Right(a) => g(a)
+    }
+    def map[B](f: A => B): Either[E, B] =
+      fold(Left.apply, b => Right(f(b)))
+
+    def flatMap[EE >: E, B](f: A => Either[EE, B]): Either[EE, B] =
+      fold(Left.apply,f)
+
+    def orElse[EE >: E,B >: A](b: => Either[EE, B]): Either[EE, B] =
+      fold(_ => b, _ => this)
+
+    def map2[EE >: E, B, C](b: Either[EE, B])(f: (A, B) => C): Either[EE, C] =
+      flatMap(a => b.map(f(a, _)))
   }
   case class Left[+E](value: E) extends Either[E, Nothing]
   case class Right[+A](value: A) extends Either[Nothing, A]
@@ -80,9 +113,11 @@ object Chapter4Either {
 
 
   // 4.7 Implement sequence and traverse for Either. These should return the first error that’s encountered, if there is one.
-  def sequence[E, A](es: List[Either[E, A]]): Either[E, List[A]] = ???
+  def sequence[E, A](es: List[Either[E, A]]): Either[E, List[A]] =
+    es.foldRight(Right(Nil): Either[E, List[A]])(_.map2(_)(_ :: _))
 
-  def traverse[E, A, B](as: List[A])(f: A => Either[E, B]): Either[E, List[B]] = ???
+  def traverse[E, A, B](es: List[A])(f: A => Either[E, B]): Either[E, List[B]] =
+    es.foldRight(Right(Nil): Either[E, List[B]])((a, acc) => f(a).map2(acc)(_ :: _))
 
 
 
