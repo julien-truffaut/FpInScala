@@ -23,6 +23,7 @@ object Ch04_Option {
   // QUESTION: What does "get" mean here ?
   // get is just a name for the option's element
   case class Some[+A](get: A) extends Option[A]
+
   case object None extends Option[Nothing]
 
   def mean(xs: Seq[Double]): Option[Double] =
@@ -61,6 +62,11 @@ object Ch04_Option {
     case Cons(Some(h), t) => map2[A, List[A], List[A]](Some(h), sequence(t))((h, t) => Cons(h, t))
   }
 
+  // We can also implement sequence using foldLeft (or foldRight). However this implementation goes through the whole
+  // list of options! It does not stop at the first encounter of None
+  def sequenceFoldLeft[A](a: List[Option[A]]): Option[List[A]]
+  = List.foldLeft[Option[A], Option[List[A]]](List.reverse(a), Some(Nil))(oa => oas => map2[A, List[A], List[A]](oa, oas)((h, t) => Cons(h, t)))
+
 
   /*
     def parseInts(a: List[String]): Option[List[Int]] =
@@ -77,6 +83,12 @@ object Ch04_Option {
       case Some(b) => map2[B, List[B], List[B]](Some(b), traverse(t)(f))((h, t) => Cons(h, t))
     }
   }
+
+  // We can also implement traverse using foldLeft (or foldRight). However this implementation goes through the whole
+  // list of options! It does not stop at the first encounter of None
+  def traverseFoldLeft[A, B](as: List[A])(f: A => Option[B]): Option[List[B]]
+  = List.foldLeft[A, Option[List[B]]](List.reverse(as), Some(Nil))(a => obs => map2[B, List[B], List[B]](f(a), obs)((h, t) => Cons(h, t)))
+
 
 }
 
@@ -138,7 +150,9 @@ object Ch04_Either {
   // Why do we define a special type Person ?
   // We could just use Tuple2[String,Int]
   case class Person(name: Name, age: Age)
+
   sealed class Name(val value: String)
+
   sealed class Age(val value: Int)
 
   def mkName(name: String): Either[String, Name] =
@@ -146,7 +160,7 @@ object Ch04_Either {
 
   // for better logging please print out the input value
   def mkAge(age: Int): Either[String, Age] =
-    if (age < 0) Left("Age is out of range. Desired age = "+age) else Right(new Age(age))
+    if (age < 0) Left("Age is out of range. Desired age = " + age) else Right(new Age(age))
 
   def mkPerson(name: String, age: Int): Either[String, Person] =
     mkName(name).map2(mkAge(age))(Person(_, _))
@@ -181,14 +195,18 @@ object Ch04_EitherList {
 
     def map2[EE >: E, B, C](b: Either[EE, B])(f: (A, B) => C): Either[EE, C] = this match {
       case Left(es) => b match {
-        case Left(bExceptions) => Left(List.append(es,bExceptions))
+        case Left(bExceptions) => Left(List.append(es, bExceptions))
         case Right(bValue) => Left(es)
       }
       case Right(a) => b.map(y => f(a, y))
     }
   }
 
+  // The Left case of EitherList contains a list exceptions, namely all exceptions thrown so far during a run.
+  // Each exception is a pair of [String,E] where E is the exception type. The first component of the pair is meant to
+  // indicate where the exception has been thrown, e.g. the name of a function or method.
   case class Left[+E](values: List[Tuple2[String, E]]) extends Either[E, Nothing]
+
   case class Right[+A](value: A) extends Either[Nothing, A]
 
   def mean(xs: IndexedSeq[Double]): Either[String, Double] = if (xs.isEmpty)
@@ -216,7 +234,7 @@ object Ch04_EitherList {
       case Cons(h, t) =>
         es match {
           case Nil => Left(exceptions)
-          case Cons(Left(excepts), t) => go(t)(List.append(exceptions,excepts))
+          case Cons(Left(excepts), t) => go(t)(List.append(exceptions, excepts))
           case Cons(_, t) => go(t)(exceptions)
         }
     }
@@ -238,7 +256,7 @@ object Ch04_EitherList {
         as match {
           case Nil => Left(exceptions)
           case Cons(a, aTail) => f(a) match {
-            case Left(es) => go(aTail)(f)(List.append(exceptions,es))
+            case Left(es) => go(aTail)(f)(List.append(exceptions, es))
             case Right(b) => go(aTail)(f)(exceptions)
           }
         }
@@ -251,14 +269,16 @@ object Ch04_EitherList {
   // Why do we define a special type Person ?
   // We could just use Tuple2[String,Int]
   case class Person(name: Name, age: Age)
+
   sealed class Name(val value: String)
+
   sealed class Age(val value: Int)
 
   def mkName(name: String): Either[String, Name] =
-    if (name == "" || name == null) Left(Cons(("mkName","Name is empty."),Nil)) else Right(new Name(name))
+    if (name == "" || name == null) Left(Cons(("mkName", "Name is empty."), Nil)) else Right(new Name(name))
 
   def mkAge(age: Int): Either[String, Age] =
-    if (age < 0) Left(Cons(("mkAge","Age is out of range. Desired age = "+age),Nil)) else Right(new Age(age))
+    if (age < 0) Left(Cons(("mkAge", "Age is out of range. Desired age = " + age), Nil)) else Right(new Age(age))
 
   def mkPerson(name: String, age: Int): Either[String, Person] = mkName(name).map2(mkAge(age))(Person(_, _))
 
@@ -289,16 +309,15 @@ object nith_Chapter_04 extends App {
   val except: String = "Let this exception been thrown at you!"
   val eithernalStringLength: String => Ch04_Either.Either[String, Int] = s => Ch04_Either.Right(s.length)
   val eithernalToInt: String => Ch04_Either.Either[String, Int] = x => try Ch04_Either.Right(x.toInt) catch {
-    case e: Exception => Ch04_Either.Left("Could not convert to Integer string "+x)
+    case e: Exception => Ch04_Either.Left("Could not convert to Integer string " + x)
   }
 
   // EitherList related constants
-  val exceptionTriple: Int => List[Tuple2[String,String]] = i => List(("App "+i,"Exception "+i),("App "+(i+1),"Exception "+(i+1)),("App "+(i+2),"Exception "+(i+2)))
+  val exceptionTriple: Int => List[Tuple2[String, String]] = i => List(("App " + i, "Exception " + i), ("App " + (i + 1), "Exception " + (i + 1)), ("App " + (i + 2), "Exception " + (i + 2)))
   val eithernalListStringLength: String => Ch04_EitherList.Either[String, Int] = s => Ch04_EitherList.Right(s.length)
   val eithernalListToInt: String => Ch04_EitherList.Either[String, Int] = x => try Ch04_EitherList.Right(x.toInt) catch {
-    case e: Exception => Ch04_EitherList.Left(List(("eithernalListToInt","Could not convert to Integer: \""+x+"\"")))
+    case e: Exception => Ch04_EitherList.Left(List(("eithernalListToInt", "Could not convert to Integer: \"" + x + "\"")))
   }
-
 
 
   println("****** Chapter_04 ******")
@@ -344,26 +363,51 @@ object nith_Chapter_04 extends App {
   println("** Exercise 4.3 **")
   println("stringIterator(\"abc\")(0) = " + stringIterator("abc", 0))
   println("stringIterator(\"abc\")(3) = " + stringIterator("abc", 3))
-  println("map2(None)(Some(23))(stringIterator) = " + Ch04_Option.map2[String, Int, String](Ch04_Option.None, Ch04_Option.Some(23))(stringIterator))
-  println("map2(Some(\"a\"))(None)(stringIterator) = " + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.None)(stringIterator))
-  println("map2(Some(\"a\"))(Some(23))(stringIterator) = " + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(23))(stringIterator))
-  println("map2(Some(\"a\"))(Some(0))(stringIterator) = " + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(0))(stringIterator))
-  println("map2(Some(\"a\"))(Some(-1))(stringIterator) = " + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(-1))(stringIterator))
+  println("map2(None)(Some(23))(stringIterator) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.None, Ch04_Option.Some(23))(stringIterator))
+  println("map2(Some(\"a\"))(None)(stringIterator) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.None)(stringIterator))
+  println("map2(Some(\"a\"))(Some(23))(stringIterator) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(23))(stringIterator))
+  println("map2(Some(\"a\"))(Some(0))(stringIterator) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(0))(stringIterator))
+  println("map2(Some(\"a\"))(Some(-1))(stringIterator) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(-1))(stringIterator))
 
   println("** Exercise 4.4 **")
+  // sequence
   println("sequence(Nil) = " + Ch04_Option.sequence(Nil))
   println("sequence(List(None)) = " + Ch04_Option.sequence(List(Ch04_Option.None)))
   println("sequence(List(Some(0))) = " + Ch04_Option.sequence(List(Ch04_Option.Some(0))))
   println("sequence(List(Some(0),Some(1))) = " + Ch04_Option.sequence(List(Ch04_Option.Some(0), Ch04_Option.Some(1))))
-  println("sequence(List(Some(0),Some(1),Some(2),Some(3),Some(4))) = " + Ch04_Option.sequence(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
-  println("sequence(List(Some(0),Some(1),None,Some(2),Some(3),Some(4))) = " + Ch04_Option.sequence(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.None, Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
+  println("sequence(List(Some(0),Some(1),Some(2),Some(3),Some(4))) = "
+    + Ch04_Option.sequence(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
+  println("sequence(List(Some(0),Some(1),None,Some(2),Some(3),Some(4))) = "
+    + Ch04_Option.sequence(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.None, Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
+  // sequenceFoldLeft
+  println("sequenceFoldLeft(Nil) = " + Ch04_Option.sequenceFoldLeft(Nil))
+  println("sequenceFoldLeft(List(None)) = " + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.None)))
+  println("sequenceFoldLeft(List(Some(0))) = " + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.Some(0))))
+  println("sequenceFoldLeft(List(Some(0),Some(1))) = "
+    + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.Some(0), Ch04_Option.Some(1))))
+  println("sequenceFoldLeft(List(Some(0),Some(1),Some(2),Some(3),Some(4))) = "
+    + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
+  println("sequenceFoldLeft(List(Some(0),Some(1),None,Some(2),Some(3),Some(4))) = "
+    + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.None, Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
 
   println("** Exercise 4.5 **")
+  // traverse
   println("traverse(Nil)(optionalStringLength) = " + Ch04_Option.traverse(Nil)(optionalStringLength))
   println("traverse(List(\"\",\"a\",\"b\",\"abc\",\"abcd\",\"abcde\"))(optionalStringLength) = " + Ch04_Option.traverse(List("", "a", "b", "abc", "abcd", "abcde"))(optionalStringLength))
   println("traverse(Nil)(optionalToInt) = " + Ch04_Option.traverse(Nil)(optionalToInt))
   println("traverse(List(\"0\",\"1\",\"2\",\"3\",\"4\"))(optionalToInt) = " + Ch04_Option.traverse(List("0", "1", "2", "3", "4"))(optionalToInt))
-  println("traverse(List(\"0\",\"1\",\"\",\"2\",\"3\",\"4\"))(optionalToInt) = " + Ch04_Option.traverse(List("0", "1", "", "2", "3", "4"))(optionalToInt))
+  println("traverse(List(\"0\",\"1\",\"a\",\"2\",\"3\",\"4\"))(optionalToInt) = " + Ch04_Option.traverse(List("0", "1", "a", "2", "3", "4"))(optionalToInt))
+  // traverseFoldLeft
+  println("traverseFoldLeft(Nil)(optionalStringLength) = " + Ch04_Option.traverseFoldLeft(Nil)(optionalStringLength))
+  println("traverseFoldLeft(List(\"\",\"a\",\"b\",\"abc\",\"abcd\",\"abcde\"))(optionalStringLength) = " + Ch04_Option.traverseFoldLeft(List("", "a", "b", "abc", "abcd", "abcde"))(optionalStringLength))
+  println("traverseFoldLeft(Nil)(optionalToInt) = " + Ch04_Option.traverseFoldLeft(Nil)(optionalToInt))
+  println("traverseFoldLeft(List(\"0\",\"1\",\"2\",\"3\",\"4\"))(optionalToInt) = " + Ch04_Option.traverseFoldLeft(List("0", "1", "2", "3", "4"))(optionalToInt))
+  println("traverseFoldLeft(List(\"0\",\"1\",\"a\",\"2\",\"3\",\"4\"))(optionalToInt) = " + Ch04_Option.traverseFoldLeft(List("0", "1", "a", "2", "3", "4"))(optionalToInt))
 
   println("************************")
   println("******   Either   ******")
@@ -449,7 +493,7 @@ object nith_Chapter_04 extends App {
   //sequence
   println("sequence(Nil) = " + Ch04_EitherList.sequence(Nil))
   println("sequence(List(Left(exceptionTriple(0)))) = " + Ch04_EitherList.sequence(List(Ch04_EitherList.Left(exceptionTriple(0)))))
-  println("sequence(List(Left(exceptionTriple(0)),Left(exceptionTriple(3)))) = " + Ch04_EitherList.sequence(List(Ch04_EitherList.Left(exceptionTriple(0)),Ch04_EitherList.Left(exceptionTriple(3)))))
+  println("sequence(List(Left(exceptionTriple(0)),Left(exceptionTriple(3)))) = " + Ch04_EitherList.sequence(List(Ch04_EitherList.Left(exceptionTriple(0)), Ch04_EitherList.Left(exceptionTriple(3)))))
   println("sequence(List(Right(0))) = " + Ch04_EitherList.sequence(List(Ch04_EitherList.Right(0))))
   println("sequence(List(Right(0),Right(1))) = " + Ch04_EitherList.sequence(List(Ch04_EitherList.Right(0), Ch04_EitherList.Right(1))))
   println("sequence(List(Right(0),Right(1),Right(2),Right(3),Right(4))) = "
@@ -458,7 +502,7 @@ object nith_Chapter_04 extends App {
     + Ch04_EitherList.sequence(List(Ch04_EitherList.Right(0), Ch04_EitherList.Right(1), Ch04_EitherList.Left(exceptionTriple(0)), Ch04_EitherList.Right(2), Ch04_EitherList.Right(3), Ch04_EitherList.Right(4))))
   println("sequence(List(Right(0),Right(1),Left(exceptionTriple(0)),Right(2),Left(exceptionTriple(3)),Right(4))) = "
     + Ch04_EitherList.sequence(List(Ch04_EitherList.Right(0), Ch04_EitherList.Right(1), Ch04_EitherList.Left(exceptionTriple(0))
-                              , Ch04_EitherList.Right(2), Ch04_EitherList.Left(exceptionTriple(3)), Ch04_EitherList.Right(4))))
+    , Ch04_EitherList.Right(2), Ch04_EitherList.Left(exceptionTriple(3)), Ch04_EitherList.Right(4))))
   //traverse
   println("traverse(Nil)(eithernalListStringLength) = " + Ch04_EitherList.traverse(Nil)(eithernalListStringLength))
   println("traverse(List(\"\",\"a\",\"b\",\"abc\",\"abcd\",\"abcde\"))(eithernalListStringLength) = "
