@@ -53,7 +53,7 @@ object List {
 
   //exercise 3.7
   def foldRight[A, B](as: List[A], z: B)(f: A => (=> B) => B): B = {
-    // println("foldRight(%s)".format(as + "," + z))
+    println("foldRight(%s)".format(as + "," + z))
     as match {
       case Nil => z
       case Cons(x, xs) => f(x)(foldRight(xs, z)(f))

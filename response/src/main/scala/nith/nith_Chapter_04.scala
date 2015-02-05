@@ -49,7 +49,7 @@ object Ch04_Option {
     y <- b
   } yield f(x, y)
 
-  def map2[A, B, C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = a.flatMap(x => b.map(y => f(x, y)))
+  def map2[A, B, C](a: Option[A], b: => Option[B])(f: A => (=> B) => C): Option[C] = a.flatMap(x => b.map(y => f(x)(y)))
 
 
   // 4.4 Write a function sequence that combines a list of Options into one Option containing
@@ -59,14 +59,16 @@ object Ch04_Option {
   def sequence[A](a: List[Option[A]]): Option[List[A]] = a match {
     case Nil => Some(Nil)
     case Cons(None, t) => None
-    case Cons(Some(h), t) => map2[A, List[A], List[A]](Some(h), sequence(t))((h, t) => Cons(h, t))
+    case Cons(Some(h), t) => map2[A, List[A], List[A]](Some(h), sequence(t))(h => t => Cons(h, t))
   }
 
   // We can also implement sequence using foldLeft (or foldRight). However this implementation goes through the whole
   // list of options! It does not stop at the first encounter of None
   def sequenceFoldLeft[A](a: List[Option[A]]): Option[List[A]]
-  = List.foldLeft[Option[A], Option[List[A]]](List.reverse(a), Some(Nil))(oa => oas => map2[A, List[A], List[A]](oa, oas)((h, t) => Cons(h, t)))
+  = List.foldLeft[Option[A], Option[List[A]]](List.reverse(a), Some(Nil))(oa => oas => map2[A, List[A], List[A]](oa, oas)(h => t => Cons(h, t)))
 
+  def sequenceFoldRight[A](a: List[Option[A]]): Option[List[A]]
+  = List.foldRight[Option[A], Option[List[A]]](a, Some(Nil))(oa => oas => map2[A, List[A], List[A]](oa, oas)(h => t => Cons(h, t)))
 
   /*
     def parseInts(a: List[String]): Option[List[Int]] =
@@ -80,14 +82,14 @@ object Ch04_Option {
     case Nil => Some(Nil)
     case Cons(h, t) => f(h) match {
       case None => None
-      case Some(b) => map2[B, List[B], List[B]](Some(b), traverse(t)(f))((h, t) => Cons(h, t))
+      case Some(b) => map2[B, List[B], List[B]](Some(b), traverse(t)(f))(h => t => Cons(h, t))
     }
   }
 
   // We can also implement traverse using foldLeft (or foldRight). However this implementation goes through the whole
   // list of options! It does not stop at the first encounter of None
   def traverseFoldLeft[A, B](as: List[A])(f: A => Option[B]): Option[List[B]]
-  = List.foldLeft[A, Option[List[B]]](List.reverse(as), Some(Nil))(a => obs => map2[B, List[B], List[B]](f(a), obs)((h, t) => Cons(h, t)))
+  = List.foldLeft[A, Option[List[B]]](List.reverse(as), Some(Nil))(a => obs => map2[B, List[B], List[B]](f(a), obs)(h => t => Cons(h, t)))
 
 
 }
@@ -299,12 +301,11 @@ object nith_Chapter_04 extends App {
   val emptySeq: Seq[Double] = Seq()
   val singleSeq: Seq[Double] = Seq(42)
   val fiveSeq: Seq[Double] = Seq(0, 1, 2, 3, 4)
+  val stringIterator: (String , Int) => String = (s , i) => if (i < 1) "" else s + stringIterator(s,i - 1)
+  val stringIteratorCurry: String => Int => String = s => i => if (i < 1) "" else s + stringIteratorCurry(s)(i - 1)
   // Option related constants
   val optionalStringLength: String => Ch04_Option.Option[Int] = s => Ch04_Option.Some(s.length)
-  val optionalToInt: String => Ch04_Option.Option[Int] = x => Ch04_Option.Try {
-    x.toInt
-  }
-  val stringIterator: (String, Int) => String = (s, i) => if (i < 1) "" else s + stringIterator(s, i - 1)
+  val optionalToInt: String => Ch04_Option.Option[Int] = x => Ch04_Option.Try { x.toInt }
   // Either related constants
   val except: String = "Let this exception been thrown at you!"
   val eithernalStringLength: String => Ch04_Either.Either[String, Int] = s => Ch04_Either.Right(s.length)
@@ -359,10 +360,10 @@ object nith_Chapter_04 extends App {
   println("variance(singleSeq) = " + Ch04_Option.variance(singleSeq))
   println("mean(fiveSeq) = " + Ch04_Option.mean(fiveSeq))
   println("variance(fiveSeq) = " + Ch04_Option.variance(fiveSeq))
-
+ /*
   println("** Exercise 4.3 **")
-  println("stringIterator(\"abc\")(0) = " + stringIterator("abc", 0))
-  println("stringIterator(\"abc\")(3) = " + stringIterator("abc", 3))
+  println("stringIterator(\"abc\")(0) = " + stringIteratorCurry("abc")(0))
+  println("stringIterator(\"abc\")(3) = " + stringIteratorCurry("abc")(3))
   println("map2(None)(Some(23))(stringIterator) = "
     + Ch04_Option.map2[String, Int, String](Ch04_Option.None, Ch04_Option.Some(23))(stringIterator))
   println("map2(Some(\"a\"))(None)(stringIterator) = "
@@ -373,7 +374,7 @@ object nith_Chapter_04 extends App {
     + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(0))(stringIterator))
   println("map2(Some(\"a\"))(Some(-1))(stringIterator) = "
     + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(-1))(stringIterator))
-
+*/
   println("** Exercise 4.4 **")
   // sequence
   println("sequence(Nil) = " + Ch04_Option.sequence(Nil))
@@ -394,6 +395,17 @@ object nith_Chapter_04 extends App {
     + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
   println("sequenceFoldLeft(List(Some(0),Some(1),None,Some(2),Some(3),Some(4))) = "
     + Ch04_Option.sequenceFoldLeft(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.None, Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
+
+  // sequenceFoldRight
+  println("sequenceFoldRight(Nil) = " + Ch04_Option.sequenceFoldRight(Nil))
+  println("sequenceFoldRight(List(None)) = " + Ch04_Option.sequenceFoldRight(List(Ch04_Option.None)))
+  println("sequenceFoldRight(List(Some(0))) = " + Ch04_Option.sequenceFoldRight(List(Ch04_Option.Some(0))))
+  println("sequenceFoldRight(List(Some(0),Some(1))) = "
+    + Ch04_Option.sequenceFoldRight(List(Ch04_Option.Some(0), Ch04_Option.Some(1))))
+  println("sequenceFoldRight(List(Some(0),Some(1),Some(2),Some(3),Some(4))) = "
+    + Ch04_Option.sequenceFoldRight(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
+  println("sequenceFoldRight(List(Some(0),Some(1),None,Some(2),Some(3),Some(4))) = "
+    + Ch04_Option.sequenceFoldRight(List(Ch04_Option.Some(0), Ch04_Option.Some(1), Ch04_Option.None, Ch04_Option.Some(2), Ch04_Option.Some(3), Ch04_Option.Some(4))))
 
   println("** Exercise 4.5 **")
   // traverse
@@ -428,8 +440,8 @@ object nith_Chapter_04 extends App {
   println("Right(42).orElse(Right(2.4)) = " + Ch04_Either.Right(42).orElse(Ch04_Either.Right(2.4)))
   println("Right(Right(42)).orElse(Right(2.4)) = " + Ch04_Either.Right(Ch04_Either.Right(42)).orElse(Ch04_Either.Right(2.4)))
   // map2
-  println("stringIterator(\"abc\")(0) = " + stringIterator("abc", 0))
-  println("stringIterator(\"abc\")(3) = " + stringIterator("abc", 3))
+  println("stringIterator(\"abc\")(0) = " + stringIteratorCurry("abc")(0))
+  println("stringIterator(\"abc\")(3) = " + stringIteratorCurry("abc")(3))
   println("Left(except).map2(Right(23))(stringIterator) = " + Ch04_Either.Left(except).map2(Ch04_Either.Right(23))(stringIterator))
   println("Left(except).map2(Left(except))(stringIterator) = " + Ch04_Either.Left(except).map2(Ch04_Either.Left(except))(stringIterator))
   println("Right(\"a\").map2(Left(except))(stringIterator) = " + Ch04_Either.Right("a").map2(Ch04_Either.Left(except))(stringIterator))
