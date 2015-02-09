@@ -53,7 +53,7 @@ object List {
 
   //exercise 3.7
   def foldRight[A, B](as: List[A], z: B)(f: A => (=> B) => B): B = {
-    //  println("foldRight(%s)".format(as))
+    println("foldRight(%s)".format(as + "," + z))
     as match {
       case Nil => z
       case Cons(x, xs) => f(x)(foldRight(xs, z)(f))
@@ -85,12 +85,15 @@ object List {
   // end of exercise 3.7
 
   //exercise 3.10
-  @tailrec
   // first B parameter B is meant to be referenced by name instead of value
   // for lazy evaluation, so (=>B) instead of B
-  def foldLeft[A, B](as: List[A], z: B)(f: A => (=> B) => B): B = as match {
-    case Nil => z
-    case Cons(x, xs) => foldLeft(xs, f(x)(z))(f)
+  @tailrec
+  def foldLeft[A, B](as: List[A], z: B)(f: A => (=> B) => B): B = {
+    // println("foldLeft(%s)".format(as + "," + z))
+    as match {
+      case Nil => z
+      case Cons(x, xs) => foldLeft(xs, f(x)(z))(f)
+    }
   }
 
   //exercise 3.11
@@ -163,10 +166,10 @@ object List {
   def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = sub match {
     case Nil => true
     case Cons(a, as) => List.dropWhile(sup)(x => x != a) match {
-        case Nil => false
-        case Cons(a1, Nil) => as == Nil
-        case Cons(a1, Cons(a2, t)) => isInitialSegment(as, Cons(a2, t)) || hasSubsequence(Cons(a2, t), sub)
-      }
+      case Nil => false
+      case Cons(a1, Nil) => as == Nil
+      case Cons(a1, Cons(a2, t)) => isInitialSegment(as, Cons(a2, t)) || hasSubsequence(Cons(a2, t), sub)
+    }
   }
 
 }
@@ -238,7 +241,7 @@ object FinTree {
 }
 
 
-object nith_Chapter_03 extends App {
+object nith_Chapter_03 {
 
   //exercise 3.1
   def matchFun(l: List[Int]): Int = l match {
@@ -249,140 +252,141 @@ object nith_Chapter_03 extends App {
     case _ => 101
   }
 
+  def main(args: Array[String]) {
 
-  val nilList: List[Double] = Nil
-  val oneList: List[Int] = Cons(1, Nil)
-  val strList: List[String] = Cons("a", Cons("b", Nil))
-  val dblList: List[Double] = List(0.1, 1.2, 2.3, 3.4, 4.5)
-  val fivList: List[Int] = List(0, 1, 2, 3, 4)
-  val tenList: List[Int] = List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-  val hunList: List[Int] = List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29
-    , 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
-    , 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89
-    , 90, 91, 92, 93, 94, 95, 96, 97, 98, 99)
+    val nilList: List[Double] = Nil
+    val oneList: List[Int] = Cons(1, Nil)
+    val strList: List[String] = Cons("a", Cons("b", Nil))
+    val dblList: List[Double] = List(0.1, 1.2, 2.3, 3.4, 4.5)
+    val fivList: List[Int] = List(0, 1, 2, 3, 4)
+    val tenList: List[Int] = List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+    val hunList: List[Int] = List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29
+      , 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
+      , 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89
+      , 90, 91, 92, 93, 94, 95, 96, 97, 98, 99)
 
-  println("****** Chapter_03 ******")
-  println("************************")
+    println("****** Chapter_03 ******")
+    println("************************")
 
-  println("****** a few lists ******")
-  println("nilList=" + List.myString(nilList))
-  println("oneList=" + List.myString(oneList))
-  println("strList=" + List.myString(strList))
-  println("dblList=" + List.myString(dblList))
-  println("fivList=" + List.myString(fivList))
-  println("tenList=" + List.myString(tenList))
-  println("hunList=" + List.myString(hunList))
-  println("****** playing with fivList ******")
-  println("matchFun(fivList)=" + matchFun(fivList))
-  println("tail(fivList)=" + List.tail(fivList))
-  println("setHead(fivList,42)=" + List.setHead(fivList, 42))
-  println("drop(fivList,-1)=" + List.drop(fivList, -1))
-  println("drop(fivList,0)=" + List.drop(fivList, 0))
-  println("drop(fivList,3)=" + List.drop(fivList, 3))
-  println("drop(fivList,9)=" + List.drop(fivList, 9))
-  println("dropWhile(fivList)(i=>(i==i))=" + List.dropWhile(fivList)(i => i == i))
-  println("dropWhile(fivList)(i=>(i<4))=" + List.dropWhile(fivList)(i => i < 4))
-  println("dropWhile(fivList)(i=>(i%3<2))=" + List.dropWhile(fivList)(i => i % 3 < 2))
-  println("****** method init ******")
-  println("init(oneList)=" + List.init(oneList))
-  println("init(strList)=" + List.init(strList))
-  println("init(fivList)=" + List.init(fivList))
-  println("****** a few lists ******")
-  println("nilList=" + List.myString(nilList))
-  println("oneList=" + List.myString(oneList))
-  println("strList=" + List.myString(strList))
-  println("dblList=" + List.myString(dblList))
-  println("fivList=" + List.myString(fivList))
-  println("tenList=" + List.myString(tenList))
-  println("hunList=" + List.myString(hunList))
-  println("****** foldRight and foldLeft******")
-  println("sum(fivList)=" + List.product(fivList))
-  println("sum(tenList)=" + List.product(tenList))
-  println("sum(hunList)=" + List.product(hunList))
-  println("sumFoldRight(tenList)=" + List.sumFoldRight(tenList))
-  println("sumFoldLeft(tenList)=" + List.sumFoldLeft(tenList))
-  println("product(List.tail(fivList))=" + List.product(List.tail(fivList)))
-  println("productFoldRight(tenList)=" + List.productFoldRight(tenList))
-  println("productFoldLeft(tenList)=" + List.productFoldLeft(tenList))
-  println("foldRight(fivList, Nil:List[Int])(a=>as=>Cons(a,as))))=" + List.foldRight(fivList, Nil: List[Int])(a => as => Cons(a, as)))
-  println("length(fivList)=" + List.length(fivList))
-  println("length(tenList)=" + List.length(tenList))
-  println("length(hunList)=" + List.length(hunList))
-  println("sumFoldRight(hunList)=" + List.sumFoldRight(hunList))
-  println("sumFoldLeft(hunList)=" + List.sumFoldLeft(hunList))
-  println("product(hunList)=" + List.product(hunList))
-  println("productFoldRight(hunList)=" + List.productFoldRight(hunList))
-  println("productFoldLeft(hunList)=" + List.productFoldLeft(hunList))
-  println("reverse(tenList)=" + List.myString(List.reverse(tenList)))
-  println("append(fivList,tenList)=" + List.myString(List.append(fivList, tenList)))
-  println("concat(fivList,strList,tenList)=" + List.myString(List.concat(List(fivList, strList, tenList))))
-  println("map(fivList)(n=>n+1)=" + List.myString(List.map(fivList)(n => n + 1)))
-  println("map(dblList)(toString)=" + List.myString(List.map(dblList)(d => d.toString)))
-  println("flatMap(fivList)(n=>List(n+1))=" + List.myString(List.flatMap(fivList)(n => List(n + 1))))
-  println("flatMap(fivList)(n=>List(n*n))=" + List.myString(List.flatMap(fivList)(n => List(n * n))))
-  println("flatMap(fivList)(i => List(i,i)))=" + List.myString(List.flatMap(fivList)(i => List(i, i))))
-  println("filter[Int](Nil)(n=>0==(n%2)=" + List.myString(List.filter[Int](Nil)(n => 0 == (n % 2))))
-  println("filter(tenList)(n=>0==(n%2)=" + List.myString(List.filter(tenList)(n => 0 == (n % 2))))
-  println("filter(tenList)(n=>0==(n%7)=" + List.myString(List.filter(tenList)(n => 0 == (n % 7))))
-  println("flatFilter[Int](Nil)(n=>0==(n%2)=" + List.myString(List.flatFilter[Int](Nil)(n => 0 == (n % 2))))
-  println("flatFilter(tenList)(n=>0==(n%2)=" + List.myString(List.flatFilter(tenList)(n => 0 == (n % 2))))
-  println("flatFilter(tenList)(n=>0==(n%7)=" + List.myString(List.flatFilter(tenList)(n => 0 == (n % 7))))
-  println("Pair(fivList)(tenList)(n=>m=>n+m)=" + List.myString(List.Pair(fivList)(tenList)))
-  println("zipWith(fivList)(tenList)(n=>m=>n+m)=" + List.myString(List.zipWith(fivList)(tenList)(n => m => n + m)))
-  println("zipWith(fivList)(tenList)(n=>m=>n*m)=" + List.myString(List.zipWith(fivList)(tenList)(n => m => n * m)))
-  println("fivList=" + List.myString(fivList))
-  println("tenList=" + List.myString(tenList))
-  println("isInitialSegment(fivList,tenList,true)=" + List.isInitialSegment(fivList, tenList))
-  println("isInitialSegment(tenList,fivList,true)=" + List.isInitialSegment(tenList, fivList))
-  println("hasSubsequence(fivList,tenList)=" + List.hasSubsequence(fivList, tenList))
-  println("hasSubsequence(tenList,fivList)=" + List.hasSubsequence(tenList, fivList))
-  println("hasSubsequence(hunList,fivList)=" + List.hasSubsequence(hunList, fivList))
-  println("hasSubsequence(hunList,tenList)=" + List.hasSubsequence(hunList, tenList))
-  println("hasSubsequence(List(0,42,1,2,3,4),fivList)=" + List.hasSubsequence(List(0, 42, 1, 2, 3, 4), fivList))
-  println("hasSubsequence(List(0,42,0,1,2,3,4),fivList)=" + List.hasSubsequence(List(0, 42, 0, 1, 2, 3, 4), fivList))
-  println("****** Trees ******")
-  println("size(Leaf(42))=" + Tree.size(Leaf(42)))
-  println("size(Branch(Leaf(-1),Leaf(42)))=" + Tree.size(Branch(Leaf(-1), Leaf(42))))
-  println("size(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.size(Branch(Branch(Leaf(-1), Leaf(0)), Leaf(42))))
-  println("sizeFold(Leaf(42))=" + Tree.sizeFold(Leaf(42)))
-  println("sizeFold(Branch(Leaf(-1),Leaf(42)))=" + Tree.sizeFold(Branch(Leaf(-1), Leaf(42))))
-  println("sizeFold(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.sizeFold(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
-  println("maxVal(Leaf(42))=" + Tree.maxVal(Leaf(42)))
-  println("maxVal(Branch(Leaf(-1),Leaf(42)))=" + Tree.maxVal(Branch(Leaf(-1), Leaf(42))))
-  println("maxVal(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.maxVal(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
-  println("depth(Leaf(42))=" + Tree.depth(Leaf(42)))
-  println("depth(Branch(Leaf(-1),Leaf(42)))=" + Tree.depth(Branch(Leaf(-1), Leaf(42))))
-  println("depth(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.depth(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
-  println("stringLength(Leaf(a))=" + Tree.stringLength(Leaf("a")))
-  println("stringLength(Branch(Leaf(a),Leaf(abc)))=" + Tree.stringLength(Branch(Leaf("a"), Leaf("abc"))))
-  println("stringLength(Branch(Branch(Leaf(abc),Leaf()),Leaf(abcd)))="
-    + Tree.stringLength(Branch(Branch(Leaf("abc"), Leaf("")), Leaf("abcd"))))
-  println("****** Finitary branching trees with values at all nodes: FinTree ******")
-  println("size(fTree(42,Nil))=" + FinTree.size(fTree(42, Nil)))
-  println("size(fTree(123,List(fTree(-1,Nil),fTree(42,Nil)))))=" + FinTree.size(fTree(123, List(fTree(-1, Nil), fTree(42, Nil)))))
-  println("size(fTree(456,List(fTree(123,List(fTree(-1,Nil),fTree(0,Nil))),fTree(42,Nil))))="
-    + FinTree.size(fTree(456, List(fTree(123, List(fTree(-1, Nil), fTree(0, Nil))), fTree(42, Nil)))))
-  println("maxVal(fTree(42,Nil))=" + FinTree.maxVal(fTree(42, Nil)))
-  println("maxVal(fTree(123,List(fTree(-1,Nil),fTree(42,Nil)))))=" + FinTree.maxVal(fTree(123, List(fTree(-1, Nil), fTree(42, Nil)))))
-  println("maxVal(fTree(456,List(fTree(123,List(fTree(-1,Nil),fTree(0,Nil))),fTree(42,Nil))))="
-    + FinTree.maxVal(fTree(456, List(fTree(123, List(fTree(-1, Nil), fTree(0, Nil))), fTree(42, Nil)))))
-  println("depth(fTree(42,Nil))=" + FinTree.depth(fTree(42, Nil)))
-  println("depth(fTree(123,List(fTree(-1,Nil),fTree(42,Nil)))))=" + FinTree.depth(fTree(123, List(fTree(-1, Nil), fTree(42, Nil)))))
-  println("depth(fTree(456,List(fTree(123,List(fTree(-1,Nil),fTree(0,Nil))),fTree(42,Nil))))="
-    + FinTree.depth(fTree(456, List(fTree(123, List(fTree(-1, Nil), fTree(0, Nil))), fTree(42, Nil)))))
-  println("depth(fTree(456,List(fTree(123,List(fTree(-1,List(fTree(7,Nil))),fTree(0,Nil))),fTree(42,List(fTree(7,Nil))))))="
-    + FinTree.depth(fTree(456, List(fTree(123, List(fTree(-1, List(fTree(7, Nil))), fTree(0, Nil))), fTree(42, List(fTree(7, Nil)))))))
-  println("****** string length for finTrees ******")
-  println("stringLength(fTree(,Nil))=" + FinTree.stringLength(fTree("", Nil)))
-  println("stringLength(fTree(abc,Nil))=" + FinTree.stringLength(fTree("abc", Nil)))
-  println("stringLength(fTree(123,Nil))=" + FinTree.stringLength(fTree("123", Nil)))
-  println("stringLength(fTree(123,List(fTree(,Nil))))=" + FinTree.stringLength(fTree("123", List(fTree("", Nil)))))
-  println("stringLength(fTree(abc,List(fTree(abc,Nil))))=" + FinTree.stringLength(fTree("abc", List(fTree("abc", Nil)))))
-  println("stringLength(fTree(123,List(fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("ab", Nil)))))
-  println("stringLength(fTree(123,List(fTree(a,Nil),fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("a", Nil), fTree("ab", Nil)))))
-  println("stringLength(fTree(456,List(fTree(123,List(fTree(ab,Nil),fTree(X,Nil))),fTree(abcdef,Nil))))="
-    + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", Nil), fTree("X", Nil))), fTree("abcdef", Nil)))))
-  println("stringLength(fTree(456,List(fTree(123,List(fTree(ab,List(fTree(7,Nil))),fTree(X,Nil))),fTree(abcdef,List(fTree(7,Nil))))))="
-    + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", List(fTree("7", Nil))), fTree("X", Nil))), fTree("abcdef", List(fTree("7", Nil)))))))
-
+    println("****** a few lists ******")
+    println("nilList=" + List.myString(nilList))
+    println("oneList=" + List.myString(oneList))
+    println("strList=" + List.myString(strList))
+    println("dblList=" + List.myString(dblList))
+    println("fivList=" + List.myString(fivList))
+    println("tenList=" + List.myString(tenList))
+    println("hunList=" + List.myString(hunList))
+    println("****** playing with fivList ******")
+    println("matchFun(fivList)=" + matchFun(fivList))
+    println("tail(fivList)=" + List.tail(fivList))
+    println("setHead(fivList,42)=" + List.setHead(fivList, 42))
+    println("drop(fivList,-1)=" + List.drop(fivList, -1))
+    println("drop(fivList,0)=" + List.drop(fivList, 0))
+    println("drop(fivList,3)=" + List.drop(fivList, 3))
+    println("drop(fivList,9)=" + List.drop(fivList, 9))
+    println("dropWhile(fivList)(i=>(i==i))=" + List.dropWhile(fivList)(i => i == i))
+    println("dropWhile(fivList)(i=>(i<4))=" + List.dropWhile(fivList)(i => i < 4))
+    println("dropWhile(fivList)(i=>(i%3<2))=" + List.dropWhile(fivList)(i => i % 3 < 2))
+    println("****** method init ******")
+    println("init(oneList)=" + List.init(oneList))
+    println("init(strList)=" + List.init(strList))
+    println("init(fivList)=" + List.init(fivList))
+    println("****** a few lists ******")
+    println("nilList=" + List.myString(nilList))
+    println("oneList=" + List.myString(oneList))
+    println("strList=" + List.myString(strList))
+    println("dblList=" + List.myString(dblList))
+    println("fivList=" + List.myString(fivList))
+    println("tenList=" + List.myString(tenList))
+    println("hunList=" + List.myString(hunList))
+    println("****** foldRight and foldLeft******")
+    println("sum(fivList)=" + List.product(fivList))
+    println("sum(tenList)=" + List.product(tenList))
+    println("sum(hunList)=" + List.product(hunList))
+    println("sumFoldRight(tenList)=" + List.sumFoldRight(tenList))
+    println("sumFoldLeft(tenList)=" + List.sumFoldLeft(tenList))
+    println("product(List.tail(fivList))=" + List.product(List.tail(fivList)))
+    println("productFoldRight(tenList)=" + List.productFoldRight(tenList))
+    println("productFoldLeft(tenList)=" + List.productFoldLeft(tenList))
+    println("foldRight(fivList, Nil:List[Int])(a=>as=>Cons(a,as))))=" + List.foldRight(fivList, Nil: List[Int])(a => as => Cons(a, as)))
+    println("length(fivList)=" + List.length(fivList))
+    println("length(tenList)=" + List.length(tenList))
+    println("length(hunList)=" + List.length(hunList))
+    println("sumFoldRight(hunList)=" + List.sumFoldRight(hunList))
+    println("sumFoldLeft(hunList)=" + List.sumFoldLeft(hunList))
+    println("product(hunList)=" + List.product(hunList))
+    println("productFoldRight(hunList)=" + List.productFoldRight(hunList))
+    println("productFoldLeft(hunList)=" + List.productFoldLeft(hunList))
+    println("reverse(tenList)=" + List.myString(List.reverse(tenList)))
+    println("append(fivList,tenList)=" + List.myString(List.append(fivList, tenList)))
+    println("concat(fivList,strList,tenList)=" + List.myString(List.concat(List(fivList, strList, tenList))))
+    println("map(fivList)(n=>n+1)=" + List.myString(List.map(fivList)(n => n + 1)))
+    println("map(dblList)(toString)=" + List.myString(List.map(dblList)(d => d.toString)))
+    println("flatMap(fivList)(n=>List(n+1))=" + List.myString(List.flatMap(fivList)(n => List(n + 1))))
+    println("flatMap(fivList)(n=>List(n*n))=" + List.myString(List.flatMap(fivList)(n => List(n * n))))
+    println("flatMap(fivList)(i => List(i,i)))=" + List.myString(List.flatMap(fivList)(i => List(i, i))))
+    println("filter[Int](Nil)(n=>0==(n%2)=" + List.myString(List.filter[Int](Nil)(n => 0 == (n % 2))))
+    println("filter(tenList)(n=>0==(n%2)=" + List.myString(List.filter(tenList)(n => 0 == (n % 2))))
+    println("filter(tenList)(n=>0==(n%7)=" + List.myString(List.filter(tenList)(n => 0 == (n % 7))))
+    println("flatFilter[Int](Nil)(n=>0==(n%2)=" + List.myString(List.flatFilter[Int](Nil)(n => 0 == (n % 2))))
+    println("flatFilter(tenList)(n=>0==(n%2)=" + List.myString(List.flatFilter(tenList)(n => 0 == (n % 2))))
+    println("flatFilter(tenList)(n=>0==(n%7)=" + List.myString(List.flatFilter(tenList)(n => 0 == (n % 7))))
+    println("Pair(fivList)(tenList)(n=>m=>n+m)=" + List.myString(List.Pair(fivList)(tenList)))
+    println("zipWith(fivList)(tenList)(n=>m=>n+m)=" + List.myString(List.zipWith(fivList)(tenList)(n => m => n + m)))
+    println("zipWith(fivList)(tenList)(n=>m=>n*m)=" + List.myString(List.zipWith(fivList)(tenList)(n => m => n * m)))
+    println("fivList=" + List.myString(fivList))
+    println("tenList=" + List.myString(tenList))
+    println("isInitialSegment(fivList,tenList,true)=" + List.isInitialSegment(fivList, tenList))
+    println("isInitialSegment(tenList,fivList,true)=" + List.isInitialSegment(tenList, fivList))
+    println("hasSubsequence(fivList,tenList)=" + List.hasSubsequence(fivList, tenList))
+    println("hasSubsequence(tenList,fivList)=" + List.hasSubsequence(tenList, fivList))
+    println("hasSubsequence(hunList,fivList)=" + List.hasSubsequence(hunList, fivList))
+    println("hasSubsequence(hunList,tenList)=" + List.hasSubsequence(hunList, tenList))
+    println("hasSubsequence(List(0,42,1,2,3,4),fivList)=" + List.hasSubsequence(List(0, 42, 1, 2, 3, 4), fivList))
+    println("hasSubsequence(List(0,42,0,1,2,3,4),fivList)=" + List.hasSubsequence(List(0, 42, 0, 1, 2, 3, 4), fivList))
+    println("****** Trees ******")
+    println("size(Leaf(42))=" + Tree.size(Leaf(42)))
+    println("size(Branch(Leaf(-1),Leaf(42)))=" + Tree.size(Branch(Leaf(-1), Leaf(42))))
+    println("size(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.size(Branch(Branch(Leaf(-1), Leaf(0)), Leaf(42))))
+    println("sizeFold(Leaf(42))=" + Tree.sizeFold(Leaf(42)))
+    println("sizeFold(Branch(Leaf(-1),Leaf(42)))=" + Tree.sizeFold(Branch(Leaf(-1), Leaf(42))))
+    println("sizeFold(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.sizeFold(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
+    println("maxVal(Leaf(42))=" + Tree.maxVal(Leaf(42)))
+    println("maxVal(Branch(Leaf(-1),Leaf(42)))=" + Tree.maxVal(Branch(Leaf(-1), Leaf(42))))
+    println("maxVal(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.maxVal(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
+    println("depth(Leaf(42))=" + Tree.depth(Leaf(42)))
+    println("depth(Branch(Leaf(-1),Leaf(42)))=" + Tree.depth(Branch(Leaf(-1), Leaf(42))))
+    println("depth(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.depth(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
+    println("stringLength(Leaf(a))=" + Tree.stringLength(Leaf("a")))
+    println("stringLength(Branch(Leaf(a),Leaf(abc)))=" + Tree.stringLength(Branch(Leaf("a"), Leaf("abc"))))
+    println("stringLength(Branch(Branch(Leaf(abc),Leaf()),Leaf(abcd)))="
+      + Tree.stringLength(Branch(Branch(Leaf("abc"), Leaf("")), Leaf("abcd"))))
+    println("****** Finitary branching trees with values at all nodes: FinTree ******")
+    println("size(fTree(42,Nil))=" + FinTree.size(fTree(42, Nil)))
+    println("size(fTree(123,List(fTree(-1,Nil),fTree(42,Nil)))))=" + FinTree.size(fTree(123, List(fTree(-1, Nil), fTree(42, Nil)))))
+    println("size(fTree(456,List(fTree(123,List(fTree(-1,Nil),fTree(0,Nil))),fTree(42,Nil))))="
+      + FinTree.size(fTree(456, List(fTree(123, List(fTree(-1, Nil), fTree(0, Nil))), fTree(42, Nil)))))
+    println("maxVal(fTree(42,Nil))=" + FinTree.maxVal(fTree(42, Nil)))
+    println("maxVal(fTree(123,List(fTree(-1,Nil),fTree(42,Nil)))))=" + FinTree.maxVal(fTree(123, List(fTree(-1, Nil), fTree(42, Nil)))))
+    println("maxVal(fTree(456,List(fTree(123,List(fTree(-1,Nil),fTree(0,Nil))),fTree(42,Nil))))="
+      + FinTree.maxVal(fTree(456, List(fTree(123, List(fTree(-1, Nil), fTree(0, Nil))), fTree(42, Nil)))))
+    println("depth(fTree(42,Nil))=" + FinTree.depth(fTree(42, Nil)))
+    println("depth(fTree(123,List(fTree(-1,Nil),fTree(42,Nil)))))=" + FinTree.depth(fTree(123, List(fTree(-1, Nil), fTree(42, Nil)))))
+    println("depth(fTree(456,List(fTree(123,List(fTree(-1,Nil),fTree(0,Nil))),fTree(42,Nil))))="
+      + FinTree.depth(fTree(456, List(fTree(123, List(fTree(-1, Nil), fTree(0, Nil))), fTree(42, Nil)))))
+    println("depth(fTree(456,List(fTree(123,List(fTree(-1,List(fTree(7,Nil))),fTree(0,Nil))),fTree(42,List(fTree(7,Nil))))))="
+      + FinTree.depth(fTree(456, List(fTree(123, List(fTree(-1, List(fTree(7, Nil))), fTree(0, Nil))), fTree(42, List(fTree(7, Nil)))))))
+    println("****** string length for finTrees ******")
+    println("stringLength(fTree(,Nil))=" + FinTree.stringLength(fTree("", Nil)))
+    println("stringLength(fTree(abc,Nil))=" + FinTree.stringLength(fTree("abc", Nil)))
+    println("stringLength(fTree(123,Nil))=" + FinTree.stringLength(fTree("123", Nil)))
+    println("stringLength(fTree(123,List(fTree(,Nil))))=" + FinTree.stringLength(fTree("123", List(fTree("", Nil)))))
+    println("stringLength(fTree(abc,List(fTree(abc,Nil))))=" + FinTree.stringLength(fTree("abc", List(fTree("abc", Nil)))))
+    println("stringLength(fTree(123,List(fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("ab", Nil)))))
+    println("stringLength(fTree(123,List(fTree(a,Nil),fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("a", Nil), fTree("ab", Nil)))))
+    println("stringLength(fTree(456,List(fTree(123,List(fTree(ab,Nil),fTree(X,Nil))),fTree(abcdef,Nil))))="
+      + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", Nil), fTree("X", Nil))), fTree("abcdef", Nil)))))
+    println("stringLength(fTree(456,List(fTree(123,List(fTree(ab,List(fTree(7,Nil))),fTree(X,Nil))),fTree(abcdef,List(fTree(7,Nil))))))="
+      + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", List(fTree("7", Nil))), fTree("X", Nil))), fTree("abcdef", List(fTree("7", Nil)))))))
+  }
 }
