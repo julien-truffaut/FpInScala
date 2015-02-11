@@ -1,5 +1,7 @@
+import List.{Nil,Cons}
 
 object Ch04_Option {
+
 
   sealed trait Option[+A] {
     // 4.1 Implements Option functions, better use getOrElse and map
@@ -302,7 +304,7 @@ object nith_Chapter_04 extends App {
   val singleSeq: Seq[Double] = Seq(42)
   val fiveSeq: Seq[Double] = Seq(0, 1, 2, 3, 4)
   val stringIterator: (String , Int) => String = (s , i) => if (i < 1) "" else s + stringIterator(s,i - 1)
-  val stringIteratorCurry: String => Int => String = s => i => if (i < 1) "" else s + stringIteratorCurry(s)(i - 1)
+  val stringIteratorCurry: String => (=>Int) => String = s => i => if (i < 1) "" else s + stringIteratorCurry(s)(i - 1)
   // Option related constants
   val optionalStringLength: String => Ch04_Option.Option[Int] = s => Ch04_Option.Some(s.length)
   val optionalToInt: String => Ch04_Option.Option[Int] = x => Ch04_Option.Try { x.toInt }
@@ -360,21 +362,19 @@ object nith_Chapter_04 extends App {
   println("variance(singleSeq) = " + Ch04_Option.variance(singleSeq))
   println("mean(fiveSeq) = " + Ch04_Option.mean(fiveSeq))
   println("variance(fiveSeq) = " + Ch04_Option.variance(fiveSeq))
- /*
   println("** Exercise 4.3 **")
   println("stringIterator(\"abc\")(0) = " + stringIteratorCurry("abc")(0))
   println("stringIterator(\"abc\")(3) = " + stringIteratorCurry("abc")(3))
   println("map2(None)(Some(23))(stringIterator) = "
-    + Ch04_Option.map2[String, Int, String](Ch04_Option.None, Ch04_Option.Some(23))(stringIterator))
-  println("map2(Some(\"a\"))(None)(stringIterator) = "
-    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.None)(stringIterator))
-  println("map2(Some(\"a\"))(Some(23))(stringIterator) = "
-    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(23))(stringIterator))
-  println("map2(Some(\"a\"))(Some(0))(stringIterator) = "
-    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(0))(stringIterator))
-  println("map2(Some(\"a\"))(Some(-1))(stringIterator) = "
-    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(-1))(stringIterator))
-*/
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.None, Ch04_Option.Some(23))(stringIteratorCurry))
+  println("map2(Some(\"a\"))(None)(stringIteratorCurry) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.None)(stringIteratorCurry))
+  println("map2(Some(\"a\"))(Some(23))(stringIteratorCurry) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(23))(stringIteratorCurry))
+  println("map2(Some(\"a\"))(Some(0))(stringIteratorCurry) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(0))(stringIteratorCurry))
+  println("map2(Some(\"a\"))(Some(-1))(stringIteratorCurry) = "
+    + Ch04_Option.map2[String, Int, String](Ch04_Option.Some("a"), Ch04_Option.Some(-1))(stringIteratorCurry))
   println("** Exercise 4.4 **")
   // sequence
   println("sequence(Nil) = " + Ch04_Option.sequence(Nil))
