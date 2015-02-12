@@ -44,11 +44,11 @@ object Ch05 {
     final def take(n: Int): Stream[A] = this match {
       case Empty => Empty
       case Cons(h, t) if (n < 1) => {
-        println("...take("+n+"): nothing to do. Supi !")
+//        println("...take("+n+"): nothing to do. Supi !")
         Empty
       }
       case Cons(h, t) if (n > 0) =>  {
-        println("...take("+n+"): Shit! This guy wants sth from me !")
+//        println("...take("+n+"): Shit! This guy wants sth from me !")
         Cons(h, () => t().take(n - 1))
       }
     }
@@ -93,7 +93,7 @@ object Ch05 {
 
     // 5.7 Implement map, filter, append, and flatMap using foldRight.
     // The append method should be non-strict in its argument.
-    def append[B >: A](s2: Stream[B]): Stream[B] = foldRight[Stream[B]](s2)((a, s) => Stream.cons[B](a, s))
+    def append[B >: A](s2: => Stream[B]): Stream[B] = foldRight[Stream[B]](s2)((a, s) => Stream.cons[B](a, s))
     def streamAppend[B >: A](ss: Stream[Stream[B]]): Stream[B] = this.append(ss.foldRight[Stream[B]](Empty)((a, s) => a.append(s)))
 
     def map[B](f: (=> A) => B): Stream[B] = foldRight[Stream[B]](Empty)((a, bs) => Cons(() => f(a), () => bs))
@@ -215,11 +215,10 @@ object nith_Chapter_05 extends App {
   println("tenStream = " + tenStream.myString)
   println("stringStream = " + stringStream.myString)
 
-/* This works fine so we comment out the lines - just believe me
-
   println("** Exercise 5.1 **")
   println("Empty.toList = " + Ch05.Empty.toList)
   println("fiveStream.toList = " + fiveStream.toList)
+
   println("** Exercise 5.2 **")
   println("** take ")
   println("Empty.take(1) = " + Ch05.Empty.take(1).myString)
@@ -238,6 +237,7 @@ object nith_Chapter_05 extends App {
   println("fiveStream.drop(7) = " + fiveStream.drop(7).myString)
   println("identityStream.drop(10).take(42) = " + identityStream.drop(10).take(42).myString)
   println("squareStream.drop(10).take(42) = " + squareStream.drop(10).take(42).myString)
+
   println("** Exercise 5.3 **")
   println("Empty.takeWhile(1) = " + Ch05.Empty.takeWhile(_ => true).myString)
   println("fiveStream.takeWhile(_%2==0) = " + fiveStream.takeWhile(_ % 2 == 0).myString)
@@ -245,15 +245,18 @@ object nith_Chapter_05 extends App {
     + identityStream.takeWhile(n => (n % 2 == 0) || (n < 10)).myString)
   println("squareStream.takeWhile( n => (n%2==0) || (n<10) ) = "
     + squareStream.takeWhile(n => (n % 2 == 0) || (n < 10)).myString)
+
   println("** Exercise 5.4 **")
   println("onesAndTwos.exists(_==1) = " + onesAndTwos.exists(_==1))
   // The following example shows that the existence function is not semi-decidable
   println("!!!! onesAndTwos.exists(_==2) = yields INFINITE LOOP WITHOUT THROWING ERROR (at least not within 3 minutes)" )
+  println("!!!! onesAndTwos contains 2 but the search nevertheless does not terminate." )
   //println("onesAndTwos.exists(_==2) = " + onesAndTwos.exists(_==2))
   println("fiveStream.forAll(_<6) = " + fiveStream.forAll(_ < 6))
   println("fiveStream.forAll(_%2==0) = " + fiveStream.forAll(_ % 2 == 0))
   println("identityStream.forAll(_<1000) = " + identityStream.forAll(_ < 1000))
   println("squareStream.forAll(_<10000) = " + squareStream.forAll(_ < 10000))
+
   println("** Exercise 5.5 **")
   println("Empty.takeWhileFoldRight(1) = " + Ch05.Empty.takeWhileFoldRight(_ => true).myString)
   println("fiveStream.takeWhileFoldRight(_%2==0) = " + fiveStream.takeWhileFoldRight(_ % 2 == 0).myString)
@@ -261,12 +264,14 @@ object nith_Chapter_05 extends App {
     + identityStream.takeWhileFoldRight(n => (n % 2 == 0) || (n < 10)).myString)
   println("squareStream.takeWhileFoldRight( n => (n%2==0) || (n<10) ) = "
     + squareStream.takeWhileFoldRight(n => (n % 2 == 0) || (n < 10)).myString)
+
   println("** Exercise 5.6 **")
   println("Empty.headOptionFoldRight = " + Ch05.Empty.headOptionFoldRight)
   println("fiveStream.headOptionFoldRight = " + fiveStream.headOptionFoldRight)
   println("identityStream.headOptionFoldRight = " + identityStream.headOptionFoldRight)
   println("squareStream.headOptionFoldRight = " + squareStream.headOptionFoldRight)
   println("identityStream.drop(42).headOptionFoldRight = " + identityStream.drop(42).headOptionFoldRight)
+
   println("** Exercise 5.7 **")
   println("** append ")
   println("emptyStream.append(fiveStream) = " + emptyStream.append(fiveStream).myString)
@@ -277,7 +282,6 @@ object nith_Chapter_05 extends App {
   println("identityStream.append(squareStream).take(10) = " + identityStream.append(squareStream).take(10).myString)
   println("identityStream.append(identityStream).append(identityStream).append(identityStream).take(20) = "
     + identityStream.append(identityStream).append(identityStream).append(identityStream).take(20).myString)
-   */
   println("** streamAppend ")
   println("Empty.streamAppend[Int](Empty) = " + Ch05.Empty.streamAppend[Int](Ch05.Empty).myString)
   println("Empty.streamAppend[String](Stream(Stream(\"a\"))) = " + Ch05.Empty.streamAppend[String](Ch05.Stream(Ch05.Stream("a"))).myString)
@@ -287,14 +291,10 @@ object nith_Chapter_05 extends App {
     + oneStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)).myString)
   println("identityStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream).take(20)) = "
     + identityStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)).take(20).myString)
-  println("!!!! Unfortunately one cannot append infinitely many streams, not even finite streams :(")
-  println("???? Is streamAppend not lazy enough? Or this data type need improvement ?")
-  println("!!!! Empty.streamAppend[Int](streamOfFiniteStreams).take(0) = Exception in thread \"main\" java.lang.StackOverflowError")
   println("Empty.streamAppend[Int](streamOfFiniteStreams).take(0) = "
     + Ch05.Empty.streamAppend[Int](streamOfFiniteStreams).take(0).myString)
-  println("!!!! Empty.streamAppend[Int](streamOfInfiniteStreams).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
-  // println("Empty.streamAppend[Int](streamOfInfiniteStreams).take(20) = "
-  //  + Ch05.Empty.streamAppend[Int](streamOfInfiniteStreams).take(20).myString)
+  println("Empty.streamAppend[Int](streamOfInfiniteStreams).take(20) = "
+    + Ch05.Empty.streamAppend[Int](streamOfInfiniteStreams).take(20).myString)
   println("** map ")
   println("stringStream.map(_.length) = " + stringStream.map(_.length).myString)
   println("** filter ")
@@ -308,18 +308,11 @@ object nith_Chapter_05 extends App {
     + fiveStream.flatMap(n => Ch05.Stream(n - 1, n, n + 1)).myString)
   println("fiveStream.drop(3).flatMap(streamOfMultiples).take(20) = "
     + fiveStream.drop(3).flatMap(streamOfMultiples).take(20).myString)
+  println("squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20) = " + squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20))
+  println("squareStream.flatMap(streamOfMultiples).take(42) = " + squareStream.flatMap(streamOfMultiples).take(42).myString)
+  println("squareStream.drop(3).flatMap(streamOfMultiples).take(20) = " + squareStream.drop(3).flatMap(streamOfMultiples).take(20))
 
   println("!!!!! NOT FINISHED !!!!!")
-  println("???? Question: Why does this not terminate ?   What a pity !")
-  println("!!!!! squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
-  // println("squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20) = " + squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20))
-
-  println("???? Question: Why does this not terminate ?   What a pity !")
-  println("!!!!! squareStream.flatMap(streamOfMultiples).take(42) = Exception in thread \"main\" java.lang.StackOverflowError")
-  // println("squareStream.flatMap(streamOfMultiples).take(42) = " + squareStream.flatMap(streamOfMultiples).take(42).myString)
-
-  println("???? Question: Why does this not terminate ?   What a pity !")
-  println("!!!!! squareStream.drop(3).flatMap(streamOfMultiples).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
-  // println("squareStream.drop(3).flatMap(streamOfMultiples).take(20) = " + squareStream.drop(3).flatMap(streamOfMultiples).take(20))
+  println("** Exercise 5.10 **")
   println("!!!!! NOT FINISHED !!!!!")
 }
