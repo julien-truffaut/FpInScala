@@ -15,7 +15,14 @@ object Ch05 {
     def myString: String = {
       def go[A](sa: Stream[A]): String = sa match {
         case Empty => ""
-        case Cons(h, t) => if (t() == Empty) h().toString else h().toString + "," + go[A](t())
+        case Cons(h, t) => {
+          lazy val hString:String = h() match {
+            case x@Empty => "()"
+            case x@Cons(_,_) => x.myString
+            case x => x.toString
+          }
+          if (t() == Empty) hString else hString + "," + go[A](t())
+        }
       }
       "(" + go(this) + ")"
     }
@@ -36,7 +43,14 @@ object Ch05 {
     // and drop(n) for skipping the first n elements of a Stream.
     final def take(n: Int): Stream[A] = this match {
       case Empty => Empty
-      case Cons(h, t) => if (n > 0) Cons(h, () => t().take(n - 1)) else Empty
+      case Cons(h, t) if (n < 1) => {
+        println("...take("+n+"): nothing to do. Supi !")
+        Empty
+      }
+      case Cons(h, t) if (n > 0) =>  {
+        println("...take("+n+"): Shit! This guy wants sth from me !")
+        Cons(h, () => t().take(n - 1))
+      }
     }
 
     @tailrec
@@ -63,9 +77,12 @@ object Ch05 {
       case _ => false
     }
 
-    final def foldRight[B](z: => B)(f: (=> A, => B) => B): B = this match {
-      case Cons(h, t) => f(h(), t().foldRight(z)(f))
-      case _ => z
+    final def foldRight[B](z: => B)(f: (=> A, => B) => B): B = {
+      // println("...foldRight(%s)".format("this.getClass()="+this.getClass().toString+"  this.take(10)="+this.take(10).myString + " , z=" + z))
+      this match {
+        case Cons(h, t) => f(h(), t().foldRight(z)(f))
+        case _ => z
+      }
     }
 
     // 5.5 Use foldRight to implement takeWhile.
@@ -76,13 +93,11 @@ object Ch05 {
 
     // 5.7 Implement map, filter, append, and flatMap using foldRight.
     // The append method should be non-strict in its argument.
-    def append[B >: A](s2: Stream[B]): Stream[B] = foldRight[Stream[B]](s2)((a, s) => Cons[B](() => a, () => s))
-    def streamAppend[B >: A](ss: Stream[Stream[B]]): Stream[B] = this.append(ss.foldRight[Stream[B]](Empty)((a, s) => Empty.append[B](a).append(s)))
-//Cons[B](this.append[B](a), () => s))
+    def append[B >: A](s2: Stream[B]): Stream[B] = foldRight[Stream[B]](s2)((a, s) => Stream.cons[B](a, s))
+    def streamAppend[B >: A](ss: Stream[Stream[B]]): Stream[B] = this.append(ss.foldRight[Stream[B]](Empty)((a, s) => a.append(s)))
+
     def map[B](f: (=> A) => B): Stream[B] = foldRight[Stream[B]](Empty)((a, bs) => Cons(() => f(a), () => bs))
-
     def filter(p: (=> A) => Boolean): Stream[A] = foldRight[Stream[A]](Empty)((a, s) => if (p(a)) Cons(() => a, () => s) else s)
-
     def flatMap[B](f: (=> A) => Stream[B]): Stream[B] = foldRight[Stream[B]](Empty)((a, s) => f(a).append(s))
 
 
@@ -98,7 +113,6 @@ object Ch05 {
   }
 
   case object Empty extends Stream[Nothing]
-
   case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
 
   object Stream {
@@ -116,7 +130,6 @@ object Ch05 {
     // apply function to generate infinite streams
     final def apply[A](f: (=> Int) => A): Stream[A] = {
       def go[A](f: (=> Int) => A)(n: Int): Stream[A] = Cons(() => f(n), () => go(f)(n + 1))
-      //      def go[A](f: (=>Int) => A)(n: Int): Stream[A] = cons(f(n), go(f)(n + 1))
       go(f)(0)
     }
   }
@@ -176,19 +189,23 @@ object nith_Chapter_05 extends App {
   val lazyIdentiy: (=> Int) => Int = n => n
   val lazySquare: (=> Int) => Int = n => n * n
   val lazyMultiple: (=> Int) => (=> Int) => Int = n => i => n * i
-  // streams
+  // finite streams
   val emptyStream: Ch05.Stream[Int] = Ch05.Stream()
   val oneStream: Ch05.Stream[Int] = Ch05.Stream(0)
   val fiveStream: Ch05.Stream[Int] = Ch05.Stream(0,1,2,3,4)
   val tenStream: Ch05.Stream[Int] = Ch05.Stream(0,1,2,3,4,5,6,7,8,9)
+  val stringStream: Ch05.Stream[String]
+  = Ch05.Stream[String]("Hello", "This is my first stream of strings.", "I hope you like it.", "Enjoy !")
+  // infinite streams
   val ones: Ch05.Stream[Int] = Ch05.Stream.cons(1, ones)
   val twos: Ch05.Stream[Int] = Ch05.Stream.cons(2, twos)
   val onesAndTwos: Ch05.Stream[Int] = ones.append(twos)
   val identityStream: Ch05.Stream[Int] = Ch05.Stream[Int](lazyIdentiy)
   val squareStream: Ch05.Stream[Int] = Ch05.Stream[Int](lazySquare)
   val streamOfMultiples: (=> Int) => Ch05.Stream[Int] = n => Ch05.Stream[Int](lazyMultiple(n))
-  val stringStream: Ch05.Stream[String]
-  = Ch05.Stream[String]("Hello", "This is my first stream of strings.", "I hope you like it.", "Enjoy !")
+  // stream of streams
+  val streamOfFiniteStreams: Ch05.Stream[Ch05.Stream[Int]] = Ch05.Stream(n=>Ch05.Stream(n - 1, n, n + 1))
+  val streamOfInfiniteStreams: Ch05.Stream[Ch05.Stream[Int]] = Ch05.Stream((n=>streamOfMultiples(n)))
 
   println("****** Chapter_05 ******")
 
@@ -197,6 +214,8 @@ object nith_Chapter_05 extends App {
   println("fiveStream = " + fiveStream.myString)
   println("tenStream = " + tenStream.myString)
   println("stringStream = " + stringStream.myString)
+
+/* This works fine so we comment out the lines - just believe me
 
   println("** Exercise 5.1 **")
   println("Empty.toList = " + Ch05.Empty.toList)
@@ -210,6 +229,7 @@ object nith_Chapter_05 extends App {
   println("fiveStream.take(7) = " + fiveStream.take(7).myString)
   println("identityStream.take(42) = " + identityStream.take(42).myString)
   println("squareStream.take(42) = " + squareStream.take(42).myString)
+  println("streamOfFiniteStreams.take(42) = " + streamOfFiniteStreams.take(42).myString)
   println("** drop ")
   println("Empty.drop(1) = " + Ch05.Empty.drop(1).myString)
   println("fiveStream.drop(-1) = " + fiveStream.drop(-1).myString)
@@ -257,6 +277,7 @@ object nith_Chapter_05 extends App {
   println("identityStream.append(squareStream).take(10) = " + identityStream.append(squareStream).take(10).myString)
   println("identityStream.append(identityStream).append(identityStream).append(identityStream).take(20) = "
     + identityStream.append(identityStream).append(identityStream).append(identityStream).take(20).myString)
+   */
   println("** streamAppend ")
   println("Empty.streamAppend[Int](Empty) = " + Ch05.Empty.streamAppend[Int](Ch05.Empty).myString)
   println("Empty.streamAppend[String](Stream(Stream(\"a\"))) = " + Ch05.Empty.streamAppend[String](Ch05.Stream(Ch05.Stream("a"))).myString)
@@ -264,14 +285,16 @@ object nith_Chapter_05 extends App {
   println("oneStream.streamAppend[Int](Stream(oneStream)) = " + oneStream.streamAppend[Int](Ch05.Stream(oneStream)).myString)
   println("oneStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)) = "
     + oneStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)).myString)
+  println("identityStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream).take(20)) = "
+    + identityStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)).take(20).myString)
   println("!!!! Unfortunately one cannot append infinitely many streams, not even finite streams :(")
   println("???? Is streamAppend not lazy enough? Or this data type need improvement ?")
-  println("!!!! Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
-  // println("Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = "
-  //  + Ch05.Empty.streamAppend[Int](Ch05.Stream(n=>Ch05.Stream(n - 1, n, n + 1))).take(20).myString)
-  println("!!!! Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
-  // println("Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = "
-  //  + Ch05.Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20).myString)
+  println("!!!! Empty.streamAppend[Int](streamOfFiniteStreams).take(0) = Exception in thread \"main\" java.lang.StackOverflowError")
+  println("Empty.streamAppend[Int](streamOfFiniteStreams).take(0) = "
+    + Ch05.Empty.streamAppend[Int](streamOfFiniteStreams).take(0).myString)
+  println("!!!! Empty.streamAppend[Int](streamOfInfiniteStreams).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
+  // println("Empty.streamAppend[Int](streamOfInfiniteStreams).take(20) = "
+  //  + Ch05.Empty.streamAppend[Int](streamOfInfiniteStreams).take(20).myString)
   println("** map ")
   println("stringStream.map(_.length) = " + stringStream.map(_.length).myString)
   println("** filter ")
