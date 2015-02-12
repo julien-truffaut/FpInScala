@@ -76,8 +76,9 @@ object Ch05 {
 
     // 5.7 Implement map, filter, append, and flatMap using foldRight.
     // The append method should be non-strict in its argument.
-    final def append[B >: A](s2: Stream[B]): Stream[B] = foldRight[Stream[B]](s2)((a, s) => Cons[B](() => a, () => s))
-
+    def append[B >: A](s2: Stream[B]): Stream[B] = foldRight[Stream[B]](s2)((a, s) => Cons[B](() => a, () => s))
+    def streamAppend[B >: A](ss: Stream[Stream[B]]): Stream[B] = this.append(ss.foldRight[Stream[B]](Empty)((a, s) => Empty.append[B](a).append(s)))
+//Cons[B](this.append[B](a), () => s))
     def map[B](f: (=> A) => B): Stream[B] = foldRight[Stream[B]](Empty)((a, bs) => Cons(() => f(a), () => bs))
 
     def filter(p: (=> A) => Boolean): Stream[A] = foldRight[Stream[A]](Empty)((a, s) => if (p(a)) Cons(() => a, () => s) else s)
@@ -178,7 +179,11 @@ object nith_Chapter_05 extends App {
   // streams
   val emptyStream: Ch05.Stream[Int] = Ch05.Stream()
   val oneStream: Ch05.Stream[Int] = Ch05.Stream(0)
-  val fiveStream: Ch05.Stream[Int] = Ch05.Stream(0, 1, 2, 3, 4)
+  val fiveStream: Ch05.Stream[Int] = Ch05.Stream(0,1,2,3,4)
+  val tenStream: Ch05.Stream[Int] = Ch05.Stream(0,1,2,3,4,5,6,7,8,9)
+  val ones: Ch05.Stream[Int] = Ch05.Stream.cons(1, ones)
+  val twos: Ch05.Stream[Int] = Ch05.Stream.cons(2, twos)
+  val onesAndTwos: Ch05.Stream[Int] = ones.append(twos)
   val identityStream: Ch05.Stream[Int] = Ch05.Stream[Int](lazyIdentiy)
   val squareStream: Ch05.Stream[Int] = Ch05.Stream[Int](lazySquare)
   val streamOfMultiples: (=> Int) => Ch05.Stream[Int] = n => Ch05.Stream[Int](lazyMultiple(n))
@@ -190,6 +195,7 @@ object nith_Chapter_05 extends App {
   println("Empty = " + Ch05.Empty.myString)
   println("oneStream = " + oneStream.myString)
   println("fiveStream = " + fiveStream.myString)
+  println("tenStream = " + tenStream.myString)
   println("stringStream = " + stringStream.myString)
 
   println("** Exercise 5.1 **")
@@ -220,6 +226,10 @@ object nith_Chapter_05 extends App {
   println("squareStream.takeWhile( n => (n%2==0) || (n<10) ) = "
     + squareStream.takeWhile(n => (n % 2 == 0) || (n < 10)).myString)
   println("** Exercise 5.4 **")
+  println("onesAndTwos.exists(_==1) = " + onesAndTwos.exists(_==1))
+  // The following example shows that the existence function is not semi-decidable
+  println("!!!! onesAndTwos.exists(_==2) = yields INFINITE LOOP WITHOUT THROWING ERROR (at least not within 3 minutes)" )
+  //println("onesAndTwos.exists(_==2) = " + onesAndTwos.exists(_==2))
   println("fiveStream.forAll(_<6) = " + fiveStream.forAll(_ < 6))
   println("fiveStream.forAll(_%2==0) = " + fiveStream.forAll(_ % 2 == 0))
   println("identityStream.forAll(_<1000) = " + identityStream.forAll(_ < 1000))
@@ -247,6 +257,21 @@ object nith_Chapter_05 extends App {
   println("identityStream.append(squareStream).take(10) = " + identityStream.append(squareStream).take(10).myString)
   println("identityStream.append(identityStream).append(identityStream).append(identityStream).take(20) = "
     + identityStream.append(identityStream).append(identityStream).append(identityStream).take(20).myString)
+  println("** streamAppend ")
+  println("Empty.streamAppend[Int](Empty) = " + Ch05.Empty.streamAppend[Int](Ch05.Empty).myString)
+  println("Empty.streamAppend[String](Stream(Stream(\"a\"))) = " + Ch05.Empty.streamAppend[String](Ch05.Stream(Ch05.Stream("a"))).myString)
+  println("Empty.streamAppend[Int](Stream(oneStream)) = " + Ch05.Empty.streamAppend[Int](Ch05.Stream(oneStream)).myString)
+  println("oneStream.streamAppend[Int](Stream(oneStream)) = " + oneStream.streamAppend[Int](Ch05.Stream(oneStream)).myString)
+  println("oneStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)) = "
+    + oneStream.streamAppend[Int](Ch05.Stream(fiveStream,tenStream,oneStream)).myString)
+  println("!!!! Unfortunately one cannot append infinitely many streams, not even finite streams :(")
+  println("???? Is streamAppend not lazy enough? Or this data type need improvement ?")
+  println("!!!! Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
+  // println("Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = "
+  //  + Ch05.Empty.streamAppend[Int](Ch05.Stream(n=>Ch05.Stream(n - 1, n, n + 1))).take(20).myString)
+  println("!!!! Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
+  // println("Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20) = "
+  //  + Ch05.Empty.streamAppend[Int](Ch05.Stream(n=>streamOfMultiples(n))).take(20).myString)
   println("** map ")
   println("stringStream.map(_.length) = " + stringStream.map(_.length).myString)
   println("** filter ")
@@ -262,15 +287,15 @@ object nith_Chapter_05 extends App {
     + fiveStream.drop(3).flatMap(streamOfMultiples).take(20).myString)
 
   println("!!!!! NOT FINISHED !!!!!")
-  // Question: Why does this not terminate. What a pity !
+  println("???? Question: Why does this not terminate ?   What a pity !")
   println("!!!!! squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
   // println("squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20) = " + squareStream.flatMap[Int](n=>Ch05.Stream[Int](n)).take(20))
 
-  // Question: Why does this not terminate. What a pity !
+  println("???? Question: Why does this not terminate ?   What a pity !")
   println("!!!!! squareStream.flatMap(streamOfMultiples).take(42) = Exception in thread \"main\" java.lang.StackOverflowError")
   // println("squareStream.flatMap(streamOfMultiples).take(42) = " + squareStream.flatMap(streamOfMultiples).take(42).myString)
 
-  // Question: Why does this not terminate. What a pity !
+  println("???? Question: Why does this not terminate ?   What a pity !")
   println("!!!!! squareStream.drop(3).flatMap(streamOfMultiples).take(20) = Exception in thread \"main\" java.lang.StackOverflowError")
   // println("squareStream.drop(3).flatMap(streamOfMultiples).take(20) = " + squareStream.drop(3).flatMap(streamOfMultiples).take(20))
   println("!!!!! NOT FINISHED !!!!!")
