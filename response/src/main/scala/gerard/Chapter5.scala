@@ -82,6 +82,31 @@ object Chapter5 {
       }
     }
 
+    def flatMap[B](f: A => Stream[B]): Stream[B] = {
+      foldRight(empty: Stream[B]) {
+        (h, t) => f(h).append(t)
+      }
+    }
+
+    def filter(f: A => Boolean): Stream[A] = {
+      foldRight(empty: Stream[A]) {
+        (h, t) => if (f(h)) cons[A](h, t) else t
+      }
+    }
+
+    def append[B >: A](stream: Stream[B]): Stream[B] = {
+      foldRight(stream) {
+        (h, t) => cons(h, t)
+      }
+    }
+
+    def map0[B](f: A => B): Stream[B] = {
+      unfold(this) {
+        case Cons(h, t) => Some(f(h()) -> t())
+        case Empty      => None
+      }
+    }
+
     def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = ???
 
     def tails: Stream[Stream[A]] = ???
@@ -113,25 +138,37 @@ object Chapter5 {
 
   // 5.8 Generalize ones slightly to the function constant, which
   // returns an infinite Stream of a given value.
-  def constant[A](a: A): Stream[A] = ???
+  def constant[A](a: A): Stream[A] = cons(a, constant(a))
 
 
   // 5.9 Write a function that generates an infinite stream of integers,
   // starting from n, then n + 1, n + 2, and so on.7
-  def from(n: Int): Stream[Int] = ???
+  def from(n: Int): Stream[Int] = cons(n, from(n + 1))
 
 
   // 5.10 Write a function fibs that generates the infinite stream of
   // Fibonacci numbers: 0, 1, 1, 2, 3, 5, 8, and so on.
-
+  def fibs(a: Int = 0, b: Int = 1): Stream[Int] = {
+    cons(a, fibs(a + b, a))
+  }
 
   // 5.11 Write a more general stream-building function called unfold.
   // It takes an initial state, and a function for producing both the next state
   // and the next value in the generated stream.
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+    f(z) match {
+      case Some((a, s)) => cons(a, unfold(s)(f))
+      case None         => Empty
+    }
+  }
 
 
   // 5.12 Write fibs, from, constant, and ones in terms of unfold.
+  def constant0[A](a: A): Stream[A] = unfold(a)(_ => Some(a -> a))
+
+  def from0(n: Int): Stream[Int] = unfold(n)(n => Some((n + 1, n + 1)))
+
+  def fibs0: Stream[Int] = unfold(0 -> 1)(s => Some((s._1, s._1 + s._2 -> s._1)))
 
 
   // 5.13 Use unfold to implement map, take, takeWhile, zipWith (as in chapter 3),
@@ -182,6 +219,16 @@ object Chapter5 {
     println(a.headOption)
     println(a.headOption2)
     println(empty.headOption2)
-    println(a.map(_ * 5).take(2).toList)
+    println("map: " + a.map(_ * 5).take(2).toList)
+    println("filter: " + a.filter(_ % 2 == 0).toList)
+    println("append: " + cons("a", cons("b", empty)).append(a).toList)
+    println("flatMap: " + a.flatMap(i => cons(i, cons(i, empty))).toList)
+    println("constant: " + constant(42).take(3).toList)
+    println("from: " + from(42).take(3).toList)
+    println("fibs: " + fibs().take(7).toList)
+    println("constant: " + constant0(42).take(3).toList)
+    println("from: " + from0(42).take(3).toList)
+    println("fibs: " + fibs0.take(8).toList)
+    println("map: " + a.map0(_ * 5).take(2).toList)
   }
 }
