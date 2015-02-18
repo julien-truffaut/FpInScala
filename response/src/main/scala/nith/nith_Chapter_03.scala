@@ -176,6 +176,12 @@ object List {
     }
   }
 
+
+  final def exists[A](as:List[A])(p: A => Boolean): Boolean = as match {
+    case Cons(h, t) => p(h) || exists(t)(p)
+    case _ => false
+  }
+
 }
 
 sealed trait Tree[+A]
