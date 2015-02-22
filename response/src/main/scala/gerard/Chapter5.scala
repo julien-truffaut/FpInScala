@@ -1,5 +1,7 @@
 package gerard
 
+import scala.annotation.tailrec
+
 object Chapter5 {
 
   import Stream._
@@ -107,15 +109,89 @@ object Chapter5 {
       }
     }
 
-    def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = ???
+    def take0(n: Int): Stream[A] = {
+      unfold(this -> n) {
+        case (_, 0)                     => None
+        case (Cons(h, t), n0) if n0 > 0 => Some((h(), (t(), n0 - 1)))
+      }
+    }
 
-    def tails: Stream[Stream[A]] = ???
+    def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = {
+      unfold(this -> s2) {
+        case (Empty, Empty) =>
+          None
+        //        case (c1@Cons(h1, t1), c2@Cons(h2, t2)) =>
+        //          Some((Some(h1()) -> Some(h2())) -> (t1() -> t2()))
+        case (c1, c2) =>
+          def z[T](s: Stream[T]): (Option[T], Stream[T]) = s match {
+            case Cons(h, t) => Some(h()) -> t()
+            case Empty      => None -> Empty
+          }
 
-    def startsWith[B](s: Stream[B]): Boolean = ???
+          val ((a, ss1), (b, ss2)) = (z(c1), z(c2))
+          Some((a -> b) -> (ss1 -> ss2))
+      }
+    }
+
+    def tails: Stream[Stream[A]] = {
+      // I wrapped it in another cons to get the empty stream as well
+      cons(this, unfold(this) {
+        case c@Cons(_, t) => Some(t() -> t())
+        case Empty        => None
+      })
+    }
+
+    // does this start with s?
+    def startsWith[B](s: Stream[B]): Boolean = {
+
+      @tailrec
+      def doesStartWith(streams: Stream[(Option[A], Option[B])]): Boolean = {
+        streams match {
+          case Cons(h, t) =>
+            h() match {
+              case (None, _)                    =>
+                // this stream is shorter than s
+                false
+              case (Some(a), Some(b)) if a != b =>
+                // we encounter two different elements...
+                false
+              case (_, None)                    =>
+                // if we looked at all elements of s, then it's a substream!
+                true
+              case _                            =>
+                // otherwise we must continue checking...
+                doesStartWith(t())
+            }
+        }
+      }
+
+      val zipped = zipAll(s)
+      doesStartWith(zipped)
+    }
 
     def hasSubsequence[B](s: Stream[B]): Boolean =
       tails exists (_ startsWith s)
 
+    def scanRight[B](z: => B)(f: (A, => B) => B): Stream[B] = {
+      // foldRight is more expressive than scanRight...
+      // so it must be possible to implement the latter using the former...
+      foldRight(Stream(z)) {
+        case (a, c@Cons(h, _)) => cons(f(a, h()), c)
+        // note that this crashes for empty streams, just like the
+        // function in the scala library => it must be correct then ;-)
+      }
+    }
+
+    // using unfold... looks more like scanLeft...
+    def scanLeft[B](z: => B)(f: (A, => B) => B): Stream[B] = {
+      unfold(this -> z) {
+        case (Cons(h, t), b) =>
+          val b = f(h(), b)
+          Some(b -> (t() -> b))
+        case (Empty, _) =>
+          None
+      }
+    }
   }
 
   case object Empty extends Stream[Nothing]
@@ -229,6 +305,14 @@ object Chapter5 {
     println("constant: " + constant0(42).take(3).toList)
     println("from: " + from0(42).take(3).toList)
     println("fibs: " + fibs0.take(8).toList)
-    println("map: " + a.map0(_ * 5).take(2).toList)
+    println("map: " + constant(42).map0(_ * 5).take(2).toList)
+    println("take: " + a.take0(2).toList)
+    println("zipAll: " + a.zipAll(constant(42)).take(6).toList)
+    println("zipAll: " + constant(42).zipAll(a).take(6).toList)
+    println("startswith: " + (Stream(1, 2, 3) startsWith Stream(1, 2)))
+    println("startswith: " + (Stream(1, 2, 3) startsWith Stream(1, 2, 4)))
+    println("tails: " + Stream(1, 2, 3).tails.map(_.toList).toList)
+    println("scanRight: " + Stream(1, 2, 3).scanRight(0)(_ + _).toList)
+    println("scanRight: " + Stream(1, 2, 3).scanRightU(0)(_ + _).toList)
   }
 }
