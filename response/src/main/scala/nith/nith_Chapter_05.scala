@@ -91,13 +91,17 @@ object Ch05 {
       }
     }
 
-    final def foldRightLazy[B](z: => B)(f: (=> A, => B) => B): B = {
-      // println("...foldRight(%s)".format("this.getClass()="+this.getClass().toString+"  this.take(10)="+this.take(10).myString + " , z=" + z))
+    @tailrec
+    final def foldLeft[B](z: B)(f: A => (=> B) => B): B = {
+      // println("...foldLeft(%s)".format("this.getClass()="+this.getClass().toString+"  this.take(10)="+this.take(10).myString + " , z=" + z))
       this match {
-        case Cons(h, t) => f(h(), t().foldRightLazy(z)(f))
+        case Cons(a, as) => as().foldLeft(f(a())(z))(f)
         case _ => z
       }
     }
+
+    def reverse: Stream[A] = this.foldLeft(Empty: Stream[A])(a => l => Cons(() => a, () => l))
+
 
     // 5.5 Use foldRight to implement takeWhile.
     final def takeWhileFoldRight(p: (=> A) => Boolean): Stream[A] = foldRight[Stream[A]](Empty)((a, s) => if (p(a)) Cons(() => a, () => s) else Empty)
@@ -191,42 +195,76 @@ object Ch05 {
     // an infinite stream. Good reason to implement scanLeft: the first element contains the defined neutral element for
     // f. Unfortunately this works only if the result type is a super type of A.
 
-    def scanLeft[B >: A](f: B => B => B)(z: B): Stream[B]
-    = unfold[B, Stream[B]](Stream.cons(z, this))(bStream => bStream match {
-      case Cons(a1, aTail1) => aTail1() match {
-        case Cons(a2, aTail2) => Some[(B, Stream[B])](a1(), Stream.cons[B](f(a1())(a2()), aTail2()))
-        case _ => Some(a1(), Empty)
-      }
-      case _ => None
-    })
-
-    def scanLeft2[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C]
-    = unfold[C, Stream[(C, B)]](Stream.cons[(C, B)](z, this.map(a => (z._1, a))))(cbStream => cbStream match {
-      case Cons(cb1, cbTail1) => cbTail1() match {
-        case Cons(cb2, cbTail2) => {
-          lazy val previousResult: (C, B) = cb1()
-          lazy val nextResult: (C, B) = (f(cb2()._2)(previousResult._1), cb2()._2)
-          //          println("... scanLeft2: cbStream=" + cbStream.myString + "  previousResult=cb1=" + cb1() + "  cb2=" + cb2() + " nextResult=" + nextResult)
-          Some[(C, Stream[(C, B)])](previousResult._1, Stream.cons[(C, B)](nextResult, cbTail2()))
+    final def scanLeft[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = {
+      lazy val initialState: (C, Stream[B]) = (z._1, Stream.cons[B](z._2, this))
+      lazy val unFoldFun: ((C, Stream[B])) => Option[(C, (C, Stream[B]))] = {
+        case (z, bStream) => {
+          //          println("... scanLeft: z="+z+"  bStream.take(20)=" + bStream.take(20).myString)
+          bStream match {
+            case Cons(b1, bTail1) => bTail1() match {
+              case Cons(b2, bTail2) =>
+                val nextResult: C = f(b2())(z)
+                Some[(C, (C, Stream[B]))](z, (nextResult, bTail1()))
+              case _ => Some[(C, (C, Stream[B]))](z, (z, Empty))
+            }
+            case _ => None
+          }
         }
-        case _ => Some(cb1()._1, Empty)
       }
-      case _ => None
-    })
+      unfold[C, Tuple2[C, Stream[B]]](initialState)(unFoldFun)
+    }
 
-    // We present a silly idea which cannot work !
 
-    // How to use the intermediate results ?
-    // One could think of splitting the function B => B => C into a composition (C=>C=>C)(B=>C)
-    // but then I can use the standard scanLeft combined with this.map[C]
-    def scanLeft[C, B >: A](f: B => B => C)(z: (C, B)): Stream[C]
-    = unfold[C, Stream[(C, B)]](Stream.cons[(C, B)](z, this.map(a => (z._1, a))))(cbStream => cbStream match {
-      case Cons(cb1, cbTail1) => cbTail1() match {
-        case Cons(cb2, cbTail2) => Some[(C, Stream[(C, B)])](cb1()._1, Stream.cons[(C, B)]((f(cb1()._2)(cb2()._2), cb2()._2), cbTail2()))
-        case _ => Some(cb1()._1, Empty)
+    final def scanLeft2[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = {
+      lazy val initialState: (C, Stream[B]) = (z._1, this)
+      lazy val unFoldFun: ((C, Stream[B])) => Option[(C, (C, Stream[B]))] = {
+        case (z, bStream) => {
+          //          println("... scanLeft2: z="+z+"  bStream.take(20)=" + bStream.take(20).myString)
+          bStream match {
+            case Cons(b1, bTail1) =>
+              val nextResult: C = f(b1())(z)
+              Some[(C, (C, Stream[B]))](nextResult, (nextResult, bTail1()))
+            case _ => None
+          }
+        }
       }
-      case _ => None
-    })
+      Stream.cons(z._1, unfold[C, Tuple2[C, Stream[B]]](initialState)(unFoldFun))
+    }
+
+    // attemp to replace the bStream match in scanLeft2 by foldRight
+    // but I feel that this does not give much sense
+    final def scanLeft3[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = {
+      lazy val initialState: (C, Stream[B]) = (z._1, this)
+      lazy val unFoldFun: ((C, Stream[B])) => Option[(C, (C, Stream[B]))] = {
+        case (z, bStream) => {
+          //          println("... scanLeft3: z="+z+"  bStream.take(20)=" + bStream.take(20).myString)
+          bStream.foldRight[Option[(C, (C, Stream[B]))]](None)((b, ccb) => Some[(C, (C, Stream[B]))]((f(b)(ccb.get._1): C), ccb.get._2))
+        }
+      }
+      Stream.cons(z._1, unfold[C, Tuple2[C, Stream[B]]](initialState)(unFoldFun))
+    }
+
+
+    final def scanRightReverse[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = this.scanLeft[B, C](f)(z).reverse
+
+    final def scanRightUnfoldLeft[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = {
+      lazy val initialState: (C, Stream[B]) = (z._1, Stream.cons[B](z._2, this))
+      lazy val unFoldFun: ((C, Stream[B])) => Option[(C, (C, Stream[B]))] = {
+        case (z, bStream) => {
+          //          println("... scanRightUnfoldLeft: z="+z+"  bStream.take(20)=" + bStream.take(20).myString)
+          bStream match {
+            case Cons(b1, bTail1) => bTail1() match {
+              case Cons(b2, bTail2) =>
+                val nextResult: C = f(b2())(z)
+                Some[(C, (C, Stream[B]))](z, (nextResult, bTail1()))
+              case _ => Some[(C, (C, Stream[B]))](z, (z, Empty))
+            }
+            case _ => None
+          }
+        }
+      }
+      unfoldLeft[C, Tuple2[C, Stream[B]]](Empty)(initialState)(unFoldFun)
+    }
 
 
     // *** Additional Experiments ***
@@ -287,9 +325,8 @@ object Ch05 {
   // 5.10 Write a function fibs that generates the infinite stream of
   // Fibonacci numbers: 0, 1, 1, 2, 3, 5, 8, and so on.
   final def fibs: () => Stream[BigInt] = () => {
-    def go(s: => Stream[BigInt], x: BigInt, y: BigInt): Stream[BigInt] = Stream.cons[BigInt](x, go(s, y, x + y))
-    go(Empty, 0, 1)
-
+    def go(x: BigInt, y: BigInt): Stream[BigInt] = Stream.cons[BigInt](x, go(y, x + y))
+    go(0, 1)
   }
 
 
@@ -301,6 +338,12 @@ object Ch05 {
     case None => Empty
   }
 
+  // uses tail rec but does not terminate on infinite state streams
+  @tailrec
+  final def unfoldLeft[A, S](aS: Stream[A])(z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
+    case Some(x) => unfoldLeft[A, S](Stream.cons[A](x._1, aS))(x._2)(f)
+    case None => aS
+  }
 
   // 5.12 Write fibs, from, constant, and ones in terms of unfold.
   // calculates the Fibonacci numbers up to n
@@ -497,18 +540,21 @@ object nith_Chapter_05 extends App {
   println("identityStream.tails.take(10) = " + identityStream.tails.take(10))
 
   println("** Exercise 5.16 **")
+
   println("** scanLeft ")
-  println("Empty.scanLeft = " + Ch05.Stream.empty[Int].scanLeft[Int](n => m => n + m)(0).myString)
-  println("Stream(1).scanLeft = " + Ch05.Stream(1).scanLeft[Int](n => m => n + m)(0).myString)
-  println("Stream(1,20).scanLeft[Int](n=>m=>n+m)(0) = " + Ch05.Stream(1, 20).scanLeft[Int](n => m => n + m)(0).myString)
-  println("Stream(1,20,300).scanLeft[Int](n=>m=>n+m)(0) = "
-    + Ch05.Stream(1, 20, 300).scanLeft[Int](n => m => n + m)(0).myString)
-  println("Stream(1,20,300,4000,50000).scanLeft[Int](n=>m=>n+m)(0) = "
-    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft[Int](n => m => n + m)(0).myString)
-  println("ones.scanLeft(n=>m=>n+m)(0).take(10) = " + ones.scanLeft[Int](n => m => n + m)(0).take(10).myString)
-  println("onesAndTwos.scanLeft(n=>m=>n+m)(0).take(10) = " + onesAndTwos.scanLeft[Int](n => m => n + m)(0).take(10).myString)
-  println("Stream(\"Hello\",\" world!\",\" How\",\" are\",\" you\",\" today?\").scanLeft[String](s1=>s2=>s1+s2)(\"\") = "
-    + Ch05.Stream("Hello", " world!", " How", " are", " you", " today?").scanLeft[String](s1 => s2 => s1 + s2)("").myString)
+  println("Empty.scanLeft = " + Ch05.Stream.empty[Int].scanLeft[Int, Int](n => m => n + m)((0, 0)).myString)
+  println("Stream(1).scanLeft = " + Ch05.Stream(1).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20).scanLeft[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20,300).scanLeft[Int,Int](n=>m=>n+m)(0,0) = "
+    + Ch05.Stream(1, 20, 300).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanLeft[Int,Int](n=>m=>n+m)(0,0) = "
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(\"a\",\"bc\",\"def\").scanLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("a", "bc", "def").scanLeft[String, Int](s => n => s.length + n)((0, "")).myString)
+  println("ones.scanLeft[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
+  println("ones.scanLeft[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = " + ones.scanLeft[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
+  println("identityStream.scanLeft[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
+  println("identityStream.scanLeft[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) != p)((true, 1)).take(10).myString)
 
   println("** scanLeft2 ")
   println("Empty.scanLeft2 = " + Ch05.Stream.empty[Int].scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
@@ -521,17 +567,52 @@ object nith_Chapter_05 extends App {
   println("Stream(\"a\",\"bc\",\"def\").scanLeft2[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("a", "bc", "def").scanLeft2[String, Int](s => n => s.length + n)((0, "")).myString)
   println("ones.scanLeft2[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft2[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
-  println("ones.scanLeft2[Int,Boolean]( n => p => (n % 1 == 0) && p)((true,1)).take(10) = " + ones.scanLeft2[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
+  println("ones.scanLeft2[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = " + ones.scanLeft2[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
   println("identityStream.scanLeft2[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
   println("identityStream.scanLeft2[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) != p)((true, 1)).take(10).myString)
 
-  println("* Silly Idea")
-  println("Stream(\"a\",\"b\",\"cdef\").scanLeft[Int,String]( s1 => s2 => s1.length + s2.length )((0,\"\")) = "
-    + Ch05.Stream("a", "b", "cdef").scanLeft[Int, String](s1 => s2 => s1.length + s2.length)((0, "")).myString)
+  println("** scanLeft3 ")
+  println("Empty.scanLeft3 = " + Ch05.Stream.empty[Int].scanLeft3[Int, Int](n => m => n + m)((0, 0)).myString)
 
+  println("** scanRightReverse ")
+  println("Empty.scanRightReverse = " + Ch05.Stream.empty[Int].scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
+  println("Stream(1).scanRightReverse = " + Ch05.Stream(1).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20,300).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = "
+    + Ch05.Stream(1, 20, 300).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = "
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(\"a\",\"bc\",\"def\").scanRightReverse[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("a", "bc", "def").scanRightReverse[String, Int](s => n => s.length + n)((0, "")).myString)
+  println("ones.scanRightReverse[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
+  println("ones.scanRightReverse[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
+  println("identityStream.scanRightReverse[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
+  println("identityStream.scanRightReverse[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = *** INFINITE LOOP ***")
+
+  println("** scanRightUnfoldLeft ")
+  println("Empty.scanRightUnfoldLeft = " + Ch05.Stream.empty[Int].scanRightUnfoldLeft[Int, Int](n => m => n + m)((0, 0)).myString)
+  println("Stream(1).scanRightUnfoldLeft = " + Ch05.Stream(1).scanRightUnfoldLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanRightUnfoldLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20,300).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = "
+    + Ch05.Stream(1, 20, 300).scanRightUnfoldLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = "
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightUnfoldLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  println("Stream(\"a\",\"bc\",\"def\").scanRightUnfoldLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("a", "bc", "def").scanRightUnfoldLeft[String, Int](s => n => s.length + n)((0, "")).myString)
+  println("ones.scanRightUnfoldLeft[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
+  println("ones.scanRightUnfoldLeft[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
+  println("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
+  println("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = *** INFINITE LOOP ***")
 
   println("**** Additional Experiments: the fun starts ****")
+  println("** reverse ")
+  println("Empty.reverse) = " + Ch05.Empty.reverse.myString)
+  println("fiveStream.reverse = " + fiveStream.reverse.myString)
+  println("tenStream.reverse = " + tenStream.reverse.myString)
+
+  println("** Existence does not find the witness ")
   println("Stream(ones).foldRightLazy[Int](0)((s,n)=>if (s.exists(_==2)) n else n) = *** INFINITE LOOP ***")
+
   println("** streamAppend **")
   println("Empty.streamAppend[Int](Empty) = " + Ch05.Empty.streamAppend[Int](Ch05.Empty).myString)
   println("Empty.streamAppend[String](Stream(Stream(\"a\"))) = "
@@ -553,5 +634,7 @@ object nith_Chapter_05 extends App {
     + fiveStream.streamCons(Ch05.Stream(tenStream.drop(2), oneStream, fiveStream.drop(1), oneStream, fiveStream, tenStream)).myString)
   println("identityStream.streamConsFoldRight(streamOfInfiniteStreams) = "
     + identityStream.streamCons(streamOfInfiniteStreams))
+
+  println("***** Done ***** ")
 
 }
