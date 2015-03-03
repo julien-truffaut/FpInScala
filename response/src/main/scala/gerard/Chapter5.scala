@@ -146,7 +146,7 @@ object Chapter5 {
 
       @tailrec
       def doesStartWith(streams: Stream[(Option[A], Option[B])]): Boolean = {
-        streams match {
+        (streams: @unchecked) match {
           case Cons(h, t) =>
             h() match {
               case (None, _)                    =>
@@ -177,21 +177,22 @@ object Chapter5 {
       // so it must be possible to implement the latter using the former...
       foldRight(Stream(z)) {
         case (a, c@Cons(h, _)) => cons(f(a, h()), c)
+        case _ => ???
         // note that this crashes for empty streams, just like the
         // function in the scala library => it must be correct then ;-)
       }
     }
 
     // using unfold... looks more like scanLeft...
-    def scanLeft[B](z: => B)(f: (A, => B) => B): Stream[B] = {
-      unfold(this -> z) {
-        case (Cons(h, t), b) =>
-          val b = f(h(), b)
-          Some(b -> (t() -> b))
-        case (Empty, _) =>
-          None
-      }
-    }
+//    def scanLeft[B](z: => B)(f: (A, => B) => B): Stream[B] = {
+//      unfold(this -> z) {
+//        case (Cons(h, t), b) =>
+//          val b = f(h(), b)
+//          Some(b -> (t() -> b))
+//        case (Empty, _) =>
+//          None
+//      }
+//    }
   }
 
   case object Empty extends Stream[Nothing]
@@ -313,6 +314,6 @@ object Chapter5 {
     println("startswith: " + (Stream(1, 2, 3) startsWith Stream(1, 2, 4)))
     println("tails: " + Stream(1, 2, 3).tails.map(_.toList).toList)
     println("scanRight: " + Stream(1, 2, 3).scanRight(0)(_ + _).toList)
-    println("scanRight: " + Stream(1, 2, 3).scanRightU(0)(_ + _).toList)
+  //  println("scanRight: " + Stream(1, 2, 3).scanRightU(0)(_ + _).toList)
   }
 }
