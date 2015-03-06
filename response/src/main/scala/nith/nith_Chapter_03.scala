@@ -153,7 +153,7 @@ object List {
   }
 
   def zipWith[A, B, C](as: List[A])(bs: List[B])(f: A => B => C): List[C] =
-    reverse(foldLeft[Tuple2[A, B], List[C]](List.Pair(as)(bs), Nil)(a_and_b => l => Cons((f(a_and_b._1)(a_and_b._2)), l)))
+    reverse(foldLeft[Tuple2[A, B], List[C]](List.Pair(as)(bs), Nil)(x => l => Cons((f(x._1)(x._2)), l)))
 
   //exercise 3.24: isInitialSegment and hasSubsequence
   @tailrec
