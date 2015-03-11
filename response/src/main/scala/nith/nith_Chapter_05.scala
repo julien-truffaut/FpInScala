@@ -342,6 +342,10 @@ object Ch05 {
     case Some(x) => Stream.cons[A](x._1, unfold(x._2)(f))
     case None => Empty
   }
+// needed for chapter 6: make sure to take finite many elements only
+  final def unfold2[A, S](n:Int)(z: S)(f: S => (A, S)): Stream[A] = if (n<1) Empty else {f(z) match {
+    case (x,y) => Stream.cons[A](x, unfold2(n-1)(y)(f))
+  }}
 
   // uses tail rec but does not terminate on infinite state streams
   @tailrec

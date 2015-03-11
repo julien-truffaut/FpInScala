@@ -71,15 +71,13 @@ object Ch06 {
   }
 
 
-  /*
-
   type Rand[+A] = RNG => (A, RNG)
 
   val int: Rand[Int] = _.nextInt
 
   def unit[A](a: A): Rand[A] = rng => (a, rng)
 
-  def map[A,B](s: Rand[A])(f: A => B): Rand[B] = rng => {
+  def map[A, B](s: Rand[A])(f: A => B): Rand[B] = rng => {
     val (a, rng2) = s(rng)
     (f(a), rng2)
   }
@@ -88,15 +86,20 @@ object Ch06 {
 
 
   // 6.5 Use map to reimplement double in a more elegant way. See exercise 6.2.
+  def doubleMap: Rand[Double] = map(nonNegativeInt)(x => 0 - x.toDouble / Int.MinValue)
 
 
   // 6.6  Write the implementation of map2 based on the following signature.
   // This function takes two actions, ra and rb, and a function f for combining their results,
   // and returns a new action that combines them:
-  def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
+    val (a, rng2) = ra(rng)
+    val (b, rng3) = rb(rng2)
+    (f(a, b), rng3)
+  }
 
 
-  def both[A,B](ra: Rand[A], rb: Rand[B]): Rand[(A,B)] = map2(ra, rb)((_, _))
+  def both[A, B](ra: Rand[A], rb: Rand[B]): Rand[(A, B)] = map2(ra, rb)((_, _))
 
   val randIntDouble: Rand[(Int, Double)] = both(int, double)
   val randDoubleInt: Rand[(Double, Int)] = both(double, int)
@@ -107,31 +110,61 @@ object Ch06 {
   // Use it to reimplement the ints function you wrote before. For the latter, you can use the standard library
   // function List.fill(n)(x) to make a list with x repeated n times.
 
-  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = ???
+  //  We set sequence[A](Nil) = rng => (Nil,rng)
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]]
+  = List.foldLeft[Rand[A], Rand[List[A]]](fs, rng => (List.Nil, rng))(ra => rla => map2(ra, rla)(List.Cons(_, _)))
 
+  def intsSequence(count: Int): Rand[List[Int]] = sequence[Int](List.fill[Rand[Int]](count)(int))
 
-  def nonNegativeLessThan(n: Int): Rand[Int] = { rng => val (i, rng2) = nonNegativeInt(rng)
-    val mod = i % n
-    if (i + (n-1) - mod >= 0)
-      (mod, rng2)
-    else nonNegativeLessThan(n)(rng)
+  def nonNegativeLessThan(n: Int): Rand[Int] = {
+    rng => val (i, rng2) = nonNegativeInt(rng)
+      val mod = i % n
+      if (i + (n - 1) - mod >= 0)
+        (mod, rng2)
+      else nonNegativeLessThan(n)(rng)
   }
 
   // 6.8 Implement flatMap, and then use it to implement nonNegativeLessThan.
-  def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = ???
+  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] = rng => {
+    val (a, rng2) = f(rng)
+    g(a)(rng2)
+  }
+
+  def nonNegativeLessThanFlatMap(n: Int): Rand[Int]
+  = flatMap[Int, Int](nonNegativeInt)(i => rng => {
+    val mod = i % n
+    if (i + (n - 1) - mod >= 0) (mod, rng) else nonNegativeLessThanFlatMap(n)(rng)
+  })
 
   // 6.9 Reimplement map and map2 in terms of flatMap. The fact that this is possible is what
   // we’re referring to when we say that flatMap is more powerful than map and map2.
+  def map2Flat[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C]
+  = flatMap[(A, B), C](rng => {
+    val (a, rng2) = ra(rng)
+    val (b, rng3) = rb(rng2)
+    ((a, b), rng3)
+  })(x => x match {
+    case (a, b) => (r => (f(a, b), r))
+  })
+
+  def sequenceFlat[A](fs: List[Rand[A]]): Rand[List[A]]
+  = List.foldLeft[Rand[A], Rand[List[A]]](fs, rng => (List.Nil, rng))(ra => rla => map2Flat(ra, rla)(List.Cons(_, _)))
+
+  def intsSequenceFlat(count: Int): Rand[List[Int]] = sequenceFlat[Int](List.fill[Rand[Int]](count)(int))
+
+  def mapFlat[A, B](s: Rand[A])(f: A => B): Rand[B] = map2Flat[A,A,B](s,s)((a1,a2)=>f(a1))
+
+  def doubleMapFlat: Rand[Double] = mapFlat(nonNegativeInt)(x => 0 - x.toDouble / Int.MinValue)
 
 
   // TODO add missing exercices
 
-  */
 }
 
 
 object nith_Chapter_06 extends App {
 
+  val rng0: Ch06.RNG = Ch06.SimpleRNG(0)
   val SimpleRNGstream: (Long => Ch05.Stream[Int]) = fstSeed => Ch05.unfold[Int, Ch06.RNG](Ch06.SimpleRNG(fstSeed))(rng => Some(rng.nextInt))
 
   println("****** Chapter_06 ******")
@@ -139,7 +172,7 @@ object nith_Chapter_06 extends App {
   println("Int.MaxValue =  %s".format(Int.MaxValue))
   println("Long.MinValue = %s".format(Long.MinValue))
   println("Long.MaxValue =  %s".format(Long.MaxValue))
-  println("SimpleRNG(0).nextInt = %s".format(Ch06.SimpleRNG(0).nextInt))
+  println("rng0.nextInt = %s".format(rng0.nextInt))
   println("SimpleRNG(Long.MinValue).nextInt = %s".format(Ch06.SimpleRNG(Long.MinValue).nextInt))
   println("SimpleRNG(-1).nextInt = %s".format(Ch06.SimpleRNG(-1).nextInt))
   println("SimpleRNG(Long.MaxValue).nextInt = %s".format(Ch06.SimpleRNG(Long.MaxValue).nextInt))
@@ -148,12 +181,12 @@ object nith_Chapter_06 extends App {
   println("SimpleRNGstream(42).take(10) = %s".format(SimpleRNGstream(42).take(10).myString))
 
   println("** Exercise 6.1 **")
-  println("unfold(SimpleRNG(0))(rng => Some(nonNegativeInt(rng))).take(20)\n  = %s"
-    .format(Ch05.unfold[Int, Ch06.RNG](Ch06.SimpleRNG(0))(rng => Some(Ch06.nonNegativeInt(rng))).take(20).myString))
+  println("unfold(rng0)(rng => Some(nonNegativeInt(rng))).take(20)\n  = %s"
+    .format(Ch05.unfold[Int, Ch06.RNG](rng0)(rng => Some(Ch06.nonNegativeInt(rng))).take(20).myString))
 
   println("** Exercise 6.2 **")
-  println("unfold(SimpleRNG(0))(rng => Some(double(rng))).take(20)\n  = %s"
-    .format(Ch05.unfold[Double, Ch06.RNG](Ch06.SimpleRNG(0))(rng => Some(Ch06.double(rng))).take(20).myString))
+  println("unfold(rng0)(rng => Some(double(rng))).take(20)\n  = %s"
+    .format(Ch05.unfold[Double, Ch06.RNG](rng0)(rng => Some(Ch06.double(rng))).take(20).myString))
 
   println("** Exercise 6.3 **")
   println("unfold(SimpleRNG(-1))(rng => Some(intDouble(rng))).take(10)\n  = %s"
@@ -164,11 +197,36 @@ object nith_Chapter_06 extends App {
     .format(Ch05.unfold[(Double, Double, Double), Ch06.RNG](Ch06.SimpleRNG(-1))(rng => Some(Ch06.double3(rng))).take(10).myString))
 
   println("** Exercise 6.4 **")
-  println("ints(-1)(SimpleRNG(0)) = %s".format(Ch06.ints(-1)(Ch06.SimpleRNG(0))))
-  println("ints(0)(SimpleRNG(0)) = %s".format(Ch06.ints(0)(Ch06.SimpleRNG(0))))
-  println("ints(1)(SimpleRNG(0)) = %s".format(Ch06.ints(1)(Ch06.SimpleRNG(0))))
-  println("ints(3)(SimpleRNG(0)) = %s".format(Ch06.ints(3)(Ch06.SimpleRNG(0))))
-  println("ints(10)(SimpleRNG(0)) = %s".format(Ch06.ints(10)(Ch06.SimpleRNG(0))))
+  println("ints(-1)(rng0) = %s".format(Ch06.ints(-1)(rng0)))
+  println("ints(0)(rng0) = %s".format(Ch06.ints(0)(rng0)))
+  println("ints(1)(rng0) = %s".format(Ch06.ints(1)(rng0)))
+  println("ints(3)(rng0) = %s".format(Ch06.ints(3)(rng0)))
+  println("ints(10)(rng0) = %s".format(Ch06.ints(10)(rng0)))
+
+  println("** Exercise 6.5 **")
+  println("unfold(rng0)(rng => Some(double(rng))).take(20)\n  = %s"
+    .format(Ch05.unfold[Double, Ch06.RNG](rng0)(rng => Some(Ch06.double(rng))).take(10).myString))
+  println("unfold2(rng0)(3)(doubleMap)\n  = %s"
+    .format(Ch05.unfold2[Double, Ch06.RNG](10)(rng0)(Ch06.doubleMap).myString))
+
+  println("** Exercise 6.7 **")
+  println("intsSequence(-1)(rng0) = %s".format(Ch06.intsSequence(-1)(rng0)))
+  println("intsSequence(0)(rng0) = %s".format(Ch06.intsSequence(0)(rng0)))
+  println("intsSequence(1)(rng0) = %s".format(Ch06.intsSequence(1)(rng0)))
+  println("intsSequence(3)(rng0) = %s".format(Ch06.intsSequence(3)(rng0)))
+  println("intsSequence(10)(rng0) = %s".format(Ch06.intsSequence(10)(rng0)))
+
+  println("** Exercise 6.8 **")
+  println("unfold2(20)(rng0)(nonNegativeLessThan(20)        = %s".format(Ch05.unfold2[Int, Ch06.RNG](20)(rng0)(Ch06.nonNegativeLessThan(20)).myString))
+  println("unfold2(20)(rng0)(nonNegativeLessThanFlatMap(20) = %s".format(Ch05.unfold2[Int, Ch06.RNG](20)(rng0)(Ch06.nonNegativeLessThanFlatMap(20)).myString))
+
+  println("** Exercise 6.9 **")
+  println("intsSequenceFlat(10)(rng0) = %s".format(Ch06.intsSequenceFlat(10)(rng0)))
+  println("unfold2(rng0)(3)(doubleMap)\n  = %s"
+    .format(Ch05.unfold2[Double, Ch06.RNG](10)(rng0)(Ch06.doubleMap).myString))
+  println("unfold2(rng0)(3)(doubleMapFlat)\n  = %s"
+    .format(Ch05.unfold2[Double, Ch06.RNG](10)(rng0)(Ch06.doubleMapFlat).myString))
+
 
   println("***** Done ***** ")
 
