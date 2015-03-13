@@ -1,5 +1,7 @@
 package gerard
 
+import scala.collection.immutable
+
 object Chapter6 {
 
   trait RNG {
@@ -59,7 +61,7 @@ object Chapter6 {
     if (count == 0) {
       Nil -> rng
     } else {
-      val (next, nextRng) = nonNegativeInt(rng)
+      val (next, nextRng) = int(rng)
       val (intss, finalRng) = ints(count - 1)(nextRng)
       (next :: intss) -> finalRng
     }
@@ -81,12 +83,19 @@ object Chapter6 {
 
 
   // 6.5 Use map to reimplement double in a more elegant way. See exercise 6.2.
-
+  def mapDouble(rng: RNG): (Double, RNG) = {
+    map(int)(_.toDouble / (Int.MaxValue + 1.0))(rng)
+  }
 
   // 6.6  Write the implementation of map2 based on the following signature.
   // This function takes two actions, ra and rb, and a function f for combining their results,
   // and returns a new action that combines them:
-  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = {
+    rng: RNG =>
+      val (a, rng2) = ra(rng)
+      val (b, rng3) = rb(rng2)
+      f(a, b) -> rng3
+  }
 
 
   def both[A, B](ra: Rand[A], rb: Rand[B]): Rand[(A, B)] = map2(ra, rb)((_, _))
@@ -100,8 +109,19 @@ object Chapter6 {
   // Use it to reimplement the ints function you wrote before. For the latter, you can use the standard library
   // function List.fill(n)(x) to make a list with x repeated n times.
 
-  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = ???
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = map {
+    rng: RNG =>
+      fs.foldLeft(List.empty[A] -> rng) {
+        case ((acc, r), f) =>
+          val (a, rngNext) = f(r)
+          (a :: acc) -> rngNext
+      }
+  }(l => l.reverse) // wrapped in map such that we reverse the list only once
 
+  def seqInts(count: Int)(rng: RNG): (List[Int], RNG) = {
+    val rngs = List.fill(count)(int)
+    sequence(rngs)(rng)
+  }
 
   def nonNegativeLessThan(n: Int): Rand[Int] = { rng => val (i, rng2) = nonNegativeInt(rng)
     val mod = i % n
@@ -120,6 +140,7 @@ object Chapter6 {
   // TODO add missing exercices
 
   def main(args: Array[String]) {
-    println(s"ints: ${ints(5)(new SimpleRNG(42))}")
+    println(s"ints: ${ints(5)(new SimpleRNG(1))}")
+    println(s"seqints: ${seqInts(5)(new SimpleRNG(1))}")
   }
 }
