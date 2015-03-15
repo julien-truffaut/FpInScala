@@ -1,7 +1,5 @@
 package gerard
 
-import scala.collection.immutable
-
 object Chapter6 {
 
   trait RNG {
@@ -131,16 +129,62 @@ object Chapter6 {
   }
 
   // 6.8 Implement flatMap, and then use it to implement nonNegativeLessThan.
-  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] = ???
+  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] = {
+    rng: RNG =>
+      val (a, rngNext) = f(rng)
+      g(a)(rngNext)
+  }
+
+  def nonNegativeLessThan2(n: Int): Rand[Int] = {
+    flatMap(nonNegativeInt) {
+      i =>
+        val mod = i % n
+        if (i + (n - 1) - mod >= 0) {
+          rng => (mod, rng)
+        }
+        else {
+          rng => nonNegativeLessThan2(n)(rng)
+        }
+    }
+  }
+
 
   // 6.9 Reimplement map and map2 in terms of flatMap. The fact that this is possible is what
   // we’re referring to when we say that flatMap is more powerful than map and map2.
+  def mapUsingFM[A, B](s: Rand[A])(f: A => B) = {
+    flatMap(s)(a => unit(f(a)))
+  }
 
+  def map2FM[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = {
+    flatMap(ra) {
+      a => map(rb) {
+        b => f(a, b)
+      }
+    }
+  }
 
-  // TODO add missing exercices
+  case class State[S, +A](run: S => (A, S)) {
+
+    def flatMap[B](f: A => State[S, B]): State[S, B] = State {
+      s =>
+        val (a, sNext) = run(s)
+        f(a).run(sNext)
+    }
+
+    def map[B](f: A => B): State[S, B] = {
+      flatMap(a => State.unit(f(a)))
+    }
+  }
+
+  object State {
+    def unit[A, S](a: A) = State[S, A] {
+      (s: S) => (a, s)
+    }
+  }
 
   def main(args: Array[String]) {
     println(s"ints: ${ints(5)(new SimpleRNG(1))}")
     println(s"seqints: ${seqInts(5)(new SimpleRNG(1))}")
+    println(s"nonNegativeLessThan2: ${nonNegativeLessThan2(42)(new SimpleRNG(1))}")
   }
 }
