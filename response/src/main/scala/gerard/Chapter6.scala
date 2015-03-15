@@ -180,11 +180,48 @@ object Chapter6 {
     def unit[A, S](a: A) = State[S, A] {
       (s: S) => (a, s)
     }
+
+    def get[S]: State[S, S] = State(s => s -> s)
+
+    def set[S](s: S): State[S, Unit] = State(_ => () -> s)
+  }
+
+  sealed trait Input
+
+  case object Coin extends Input
+
+  case object Turn extends Input
+
+  case class Machine(locked: Boolean, candies: Int, coins: Int)
+
+  type MachineState = State[Machine, (Int, Int)]
+
+  // question: how would you write that with the getter / setters?
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = State {
+    machine =>
+
+      def step(m: Machine, input: Input): Machine = (input, m) match {
+        case (_, m@Machine(_, 0, _))               =>
+          m
+        case (Coin, m@Machine(true, _, coins0))    =>
+          m.copy(locked = false, coins = coins0 + 1)
+        case (Turn, m@Machine(false, candies0, _)) =>
+          m.copy(locked = true, candies = candies0 - 1)
+        case (_, m)                                =>
+          m
+      }
+
+      val end = inputs.foldLeft(machine)(step)
+      (end.candies, end.coins) -> end
   }
 
   def main(args: Array[String]) {
     println(s"ints: ${ints(5)(new SimpleRNG(1))}")
     println(s"seqints: ${seqInts(5)(new SimpleRNG(1))}")
     println(s"nonNegativeLessThan2: ${nonNegativeLessThan2(42)(new SimpleRNG(1))}")
+    val machine = Machine(locked = true, 5, 10)
+    val inputs = List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
+    val end = simulateMachine(inputs).run(machine)
+    println(s"simulated machine ${end}")
   }
 }
