@@ -21,6 +21,13 @@ object List {
   }
 
 
+  // needed for chapter 6
+  def fill[A](n:Int)(a:A):List[A] = {
+    @tailrec
+    def go(n:Int)(intermediaryResult:List[A]):List[A] = if (n<1) intermediaryResult else go(n-1)(Cons(a,intermediaryResult))
+    go(n)(Nil)
+  }
+
   //exercise 3.2
   def tail[A](l: List[A]): List[A] = l match {
     case Nil => Nil
@@ -153,7 +160,7 @@ object List {
   }
 
   def zipWith[A, B, C](as: List[A])(bs: List[B])(f: A => B => C): List[C] =
-    reverse(foldLeft[Tuple2[A, B], List[C]](List.Pair(as)(bs), Nil)(a_and_b => l => Cons((f(a_and_b._1)(a_and_b._2)), l)))
+    reverse(foldLeft[Tuple2[A, B], List[C]](List.Pair(as)(bs), Nil)(x => l => Cons((f(x._1)(x._2)), l)))
 
   //exercise 3.24: isInitialSegment and hasSubsequence
   @tailrec
@@ -402,5 +409,12 @@ object nith_Chapter_03 {
       + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", Nil), fTree("X", Nil))), fTree("abcdef", Nil)))))
     println("stringLength(fTree(456,List(fTree(123,List(fTree(ab,List(fTree(7,Nil))),fTree(X,Nil))),fTree(abcdef,List(fTree(7,Nil))))))="
       + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", List(fTree("7", Nil))), fTree("X", Nil))), fTree("abcdef", List(fTree("7", Nil)))))))
+
+    println("*** Additional staff ***")
+    println("List.fill(-1)(\"*\") = "+List.myString(List.fill(-1)("*")))
+    println("List.fill(0)(\"*\") = "+List.myString(List.fill(0)("*")))
+    println("List.fill(1)(\"*\") = "+List.myString(List.fill(1)("*")))
+    println("List.fill(3)(\"*\") = "+List.myString(List.fill(3)("*")))
+
   }
 }
