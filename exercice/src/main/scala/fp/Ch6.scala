@@ -91,3 +91,47 @@ object Ch6 {
   // TODO add missing exercices
 
 }
+
+object Ch6State {
+
+
+  case class State[S, +A](run: S => (A, S)) {
+    def map[B](f: A => B): State[S, B] = ???
+    def flatMap[B](f: A => State[S, B]): State[S, B] = ???
+    def map2[B, C](other: State[S, B])(f: (A, B) => C): State[S, C] = ???
+  }
+
+  object State {
+    def unit[S, A](a: A): State[S, A] = ???
+    def sequence[S, A](states: List[State[S, A]]): State[S, List[A]] = ???
+
+    def get[S]: State[S, S] = State(s => (s, s))
+    def set[S](s: S): State[S, Unit] = State(_ => ((), s))
+    def modify[S](f: S => S): State[S, Unit] =
+      for {
+        s <- get
+        _ <- set(f(s))
+      } yield ()
+
+  }
+
+  // 6.10 Generalize the functions unit, map, map2, flatMap, and sequence. Add them as methods
+  // on the State case class where possible. Otherwise you should put them in a State companion object.
+
+
+
+  // 6.11 Hard: To gain experience with the use of State, implement a finite state automaton that models
+  // a simple candy dispenser. The machine has two types of input: you can insert a coin, or you can turn
+  // the knob to dispense candy. It can be in one of two states: locked or unlocked. It also tracks how
+  // many candies are left and how many coins it contains.
+
+  sealed trait Input extends Product with Serializable
+  case object Coin extends Input
+  case object Turn extends Input
+
+  case class Machine(locked: Boolean, candies: Int, coins: Int)
+
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = ???
+
+
+}
