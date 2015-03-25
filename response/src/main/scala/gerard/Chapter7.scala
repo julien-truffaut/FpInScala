@@ -70,7 +70,7 @@ object Chapter7 {
 
     /**
      * From the book:
-     * 
+     *
      * In order to respect timeouts,
      * we’d need a new Future implementation that
      * records the amount of time spent evaluating
@@ -94,6 +94,51 @@ object Chapter7 {
         val bResult = bf.get
         UnitFuture(f(aResult, bResult))
       }
+
+    /**
+     * This is the implementation from the official solution.
+     * I would never have guessed that you should implement
+     * the map function _in_ the future.
+     * However I could also not see how a custom future implementation
+     * would help with the timeout...
+     */
+    case class Map2Future[A, B, C](a: Future[A], b: Future[B],
+                                   f: (A, B) => C) extends Future[C] {
+      @volatile var cache: Option[C] = None
+
+      def isDone = cache.isDefined
+
+      def isCancelled = a.isCancelled || b.isCancelled
+
+      def cancel(evenIfRunning: Boolean) =
+        a.cancel(evenIfRunning) || b.cancel(evenIfRunning)
+
+      def get = compute(Long.MaxValue)
+
+      def get(timeout: Long, units: TimeUnit): C =
+        compute(TimeUnit.MILLISECONDS.convert(timeout, units))
+
+      private def compute(timeoutMs: Long): C = cache match {
+        case Some(c) => c
+        case None    =>
+          val start = System.currentTimeMillis
+          val ar = a.get(timeoutMs, TimeUnit.MILLISECONDS)
+          val stop = System.currentTimeMillis;
+          val at = stop - start
+          val br = b.get(timeoutMs - at, TimeUnit.MILLISECONDS)
+          val ret = f(ar, br)
+          cache = Some(ret)
+          ret
+      }
+    }
+
+    def map2Timeout[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] =
+      (es: ExecutorService) => {
+        val af: Future[A] = a(es)
+        val bf: Future[B] = b(es)
+        Map2Future(af, bf, f)
+      }
+
 
     def fork[A](a: => Par[A]): Par[A] =
       es => es.submit(new Callable[A] {
