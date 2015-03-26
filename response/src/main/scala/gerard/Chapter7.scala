@@ -194,10 +194,16 @@ object `Chapter7 Rest` {
       sequence(fbs)
     }
 
-//    def parFilter[A](ps: List[A])(f: A => Boolean): Par[List[Nothing]] = fork {
-//      val fbs: List[Par[Boolean]] = ps.map(asyncF(f))
-//      sequence(fbs)
-//    }
+    def parFilter[A](ps: List[A])(f: A => Boolean): Par[List[A]] = fork {
+      val fbsWithBool = ps.map(asyncF(a => f(a) -> a))
+      val b = sequence(fbsWithBool)
+      map(b)(_.filter(_._1).unzip._2)
+    }
+
+    def map3[A, B, C, D](a: Par[A], b: Par[B], c: Par[C])(f: (A, B, C) => D): Par[D] = {
+      val parFromCToD = map2(a, b)((a, b) => f(a, b, _: C))
+      map2(c, parFromCToD)((c, fCurried) => fCurried(c))
+    }
   }
 
 }
