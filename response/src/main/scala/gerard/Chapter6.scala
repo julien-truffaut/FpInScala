@@ -184,6 +184,17 @@ object Chapter6 {
     def get[S]: State[S, S] = State(s => s -> s)
 
     def set[S](s: S): State[S, Unit] = State(_ => () -> s)
+
+    def modify[S](s: S)(f: S => S): State[S, Unit] = for {
+      s <- get
+      _ <- set(f(s))
+    } yield ()
+
+    def modify0[S](s: S)(f: S => S): State[S, Unit] = get.flatMap {
+      s => set(f(s)).map {
+        _ => ()
+      }
+    }
   }
 
   sealed trait Input
