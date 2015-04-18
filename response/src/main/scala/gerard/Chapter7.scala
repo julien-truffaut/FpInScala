@@ -204,6 +204,36 @@ object `Chapter7 Rest` {
       val parFromCToD = map2(a, b)((a, b) => f(a, b, _: C))
       map2(c, parFromCToD)((c, fCurried) => fCurried(c))
     }
+
+    def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = {
+      es => choices(run(es)(n).get)(es)
+    }
+
+    def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = {
+      val n = map(cond)(if (_) 1 else 0)
+      val choices = t :: f :: Nil
+      choiceN(n)(choices)
+    }
+
+    def chooser[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] = {
+      es => choices(run(es)(pa).get)(es)
+    }
+
+    def `choiceN w/ chooser`[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = {
+      chooser(n)(n => choices(n))
+    }
+
+    def `choice w/ chooser`[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = {
+      chooser(cond)(c => if(c) t else f)
+    }
+
+    def join[A](a: Par[Par[A]]): Par[A] = {
+      es => run(es)(run(es)(a).get())
+    }
+
+    def flatMap[A,B](a: Par[A])(f: A => Par[B]): Par[B] = {
+      join(map(a)(f))
+    }
   }
 
 }
