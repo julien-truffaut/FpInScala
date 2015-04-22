@@ -36,7 +36,7 @@ object `Chapter7.2` {
 
 }
 
-object Chapter7 {
+object `Chapter7 Rest` {
 
   object Par {
     def unit[A](a: A): Par[A] = (es: ExecutorService) => UnitFuture(a)
@@ -70,7 +70,7 @@ object Chapter7 {
 
     /**
      * From the book:
-     * 
+     *
      * In order to respect timeouts,
      * we’d need a new Future implementation that
      * records the amount of time spent evaluating
@@ -95,10 +95,146 @@ object Chapter7 {
         UnitFuture(f(aResult, bResult))
       }
 
+    /**
+     * This is the implementation from the official solution.
+     * I would never have guessed that you should implement
+     * the map function _in_ the future.
+     * However I could also not see how a custom future implementation
+     * would help with the timeout...
+     */
+    case class Map2Future[A, B, C](a: Future[A], b: Future[B],
+                                   f: (A, B) => C) extends Future[C] {
+      @volatile var cache: Option[C] = None
+
+      def isDone = cache.isDefined
+
+      def isCancelled = a.isCancelled || b.isCancelled
+
+      def cancel(evenIfRunning: Boolean) =
+        a.cancel(evenIfRunning) || b.cancel(evenIfRunning)
+
+      def get = compute(Long.MaxValue)
+
+      def get(timeout: Long, units: TimeUnit): C =
+        compute(TimeUnit.MILLISECONDS.convert(timeout, units))
+
+      private def compute(timeoutMs: Long): C = cache match {
+        case Some(c) => c
+        case None    =>
+          val start = System.currentTimeMillis
+          val ar = a.get(timeoutMs, TimeUnit.MILLISECONDS)
+          val stop = System.currentTimeMillis;
+          val at = stop - start
+          val br = b.get(timeoutMs - at, TimeUnit.MILLISECONDS)
+          val ret = f(ar, br)
+          cache = Some(ret)
+          ret
+      }
+    }
+
+    def map2Timeout[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] =
+      (es: ExecutorService) => {
+        val af: Future[A] = a(es)
+        val bf: Future[B] = b(es)
+        Map2Future(af, bf, f)
+      }
+
+
     def fork[A](a: => Par[A]): Par[A] =
       es => es.submit(new Callable[A] {
         def call = a(es).get
       })
+
+    def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
+
+    // 7.4 This API already enables a rich set of operations. Here’s a simple example: using lazyUnit,
+    // write a function to convert any function A => B to one that evaluates its result asynchronously.
+    // question: should we use map2 here?
+    def asyncF[A, B](f: A => B): A => Par[B] = {
+      a: A =>
+        (es: ExecutorService) => {
+          val af = lazyUnit(a)(es)
+          val aResult = af.get
+          UnitFuture(f(aResult))
+        }
+    }
+
+    def `asyncF w/ map2`[A, B](f: A => B): A => Par[B] = {
+      a: A =>
+        map2(lazyUnit(a), unit(())) {
+          case (a, _) => f(a)
+        }
+    }
+
+    def map[A, B](a: Par[A])(f: A => B): Par[B] = {
+      map2(a, unit(()))((a, _) => f(a))
+    }
+
+    // 7.5 Hard: Write this function, called sequence. No additional primitives are required. Do not call run.
+    // just plugged the types together... not sure if that makes any sense...
+    def sequence[A](ps: List[Par[A]]): Par[List[A]] = {
+      (es: ExecutorService) => {
+        UnitFuture(ps.foldLeft(List.empty[A]) {
+          case (list, par) =>
+            val a = par(es).get
+            a :: list
+        })
+      }
+    }
+
+    def `sequence w/ map2`[A](ps: List[Par[A]]): Par[List[A]] = {
+      ps.foldLeft(unit(List.empty[A])) {
+        case (list: Par[List[A]], par: Par[A]) =>
+          map2(par, list)(_ :: _)
+      }
+    }
+
+    def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = fork {
+      val fbs: List[Par[B]] = ps.map(asyncF(f))
+      sequence(fbs)
+    }
+
+    def parFilter[A](ps: List[A])(f: A => Boolean): Par[List[A]] = fork {
+      val fbsWithBool = ps.map(asyncF(a => f(a) -> a))
+      val b = sequence(fbsWithBool)
+      map(b)(_.filter(_._1).unzip._2)
+    }
+
+    def map3[A, B, C, D](a: Par[A], b: Par[B], c: Par[C])(f: (A, B, C) => D): Par[D] = {
+      val parFromCToD = map2(a, b)((a, b) => f(a, b, _: C))
+      map2(c, parFromCToD)((c, fCurried) => fCurried(c))
+    }
+
+    def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = {
+      es => choices(run(es)(n).get)(es)
+    }
+
+    def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = {
+      val n = map(cond)(if (_) 1 else 0)
+      val choices = t :: f :: Nil
+      choiceN(n)(choices)
+    }
+
+    def chooser[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] = {
+      es => choices(run(es)(pa).get)(es)
+    }
+
+    def `choiceN w/ chooser`[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = {
+      chooser(n)(n => choices(n))
+    }
+
+    def `choice w/ chooser`[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = {
+      chooser(cond)(c => if(c) t else f)
+    }
+
+    def join[A](a: Par[Par[A]]): Par[A] = {
+      es => run(es)(run(es)(a).get())
+    }
+
+    def flatMap[A,B](a: Par[A])(f: A => Par[B]): Par[B] = {
+      join(map(a)(f))
+    }
   }
 
 }
+
