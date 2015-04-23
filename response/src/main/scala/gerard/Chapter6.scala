@@ -177,7 +177,7 @@ object Chapter6 {
   }
 
   object State {
-    def unit[A, S](a: A) = State[S, A] {
+    def unit[S, A](a: A) = State[S, A] {
       (s: S) => (a, s)
     }
 
