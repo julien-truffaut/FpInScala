@@ -21,13 +21,6 @@ object List {
   }
 
 
-  // needed for chapter 6
-  def fill[A](n:Int)(a:A):List[A] = {
-    @tailrec
-    def go(n:Int)(intermediaryResult:List[A]):List[A] = if (n<1) intermediaryResult else go(n-1)(Cons(a,intermediaryResult))
-    go(n)(Nil)
-  }
-
   //exercise 3.2
   def tail[A](l: List[A]): List[A] = l match {
     case Nil => Nil
@@ -133,19 +126,31 @@ object List {
       val sAppend: String = if (s == "") "" else s + ","
       as match {
         case Nil => sAppend
-        case Cons(h, Nil) => sAppend + h.toString
-        case Cons(h, t) => go(t, sAppend + h.toString)
+        case Cons(h, t) => {
+          lazy val hString: String = h match {
+            case x@Nil => "()"
+            case x@Cons(_, _) => myString(x)
+            case x => x.toString
+          }
+          if (t == Nil) sAppend + hString else go(t, sAppend + hString)
+        }
       }
     }
     "List(" + go(as, "") + ")"
   }
 
+  def myString[A](asPair: (List[A],List[A])): String = "("+myString(asPair._1)+","+myString(asPair._2)+")" 
+
+//  def myString[A](ass: List[List[A]]): String = foldLeft[List[A],String](ass,"()")(as => s => s + "\n" + myString(as))
+
   //exercise 3.18
   def map[A, B](as: List[A])(f: A => B): List[B] = reverse(foldLeft[A, List[B]](as, Nil)(a => bs => Cons(f(a), bs)))
 
   //exercise 3.19
-  def filter[A](as: List[A])(f: A => Boolean): List[A] = reverse(foldLeft[A, List[A]](as, Nil)(a => l => if (f(a)) Cons(a, l) else l))
-
+  def filter[A](as: List[A])(f: A => Boolean): List[A] = {
+    println("...filter( "+List.myString(as)+" )( "+f.toString+" )")
+    reverse(foldLeft[A, List[A]](as, Nil)(a => l => if (f(a)) Cons(a, l) else l))
+  }
   //exercise 3.20
   def flatMap[A, B](as: List[A])(f: A => List[B]): List[B] = reverse(foldLeft[A, List[B]](as, Nil)(a => bs => append(f(a), bs)))
 
@@ -188,6 +193,26 @@ object List {
     case Cons(h, t) => p(h) || exists(t)(p)
     case _ => false
   }
+
+  // needed for chapter 6
+  def fill[A](n:Int)(a:A):List[A] = {
+    @tailrec
+    def go(n:Int)(intermediaryResult:List[A]):List[A] = if (n<1) intermediaryResult else go(n-1)(Cons(a,intermediaryResult))
+    go(n)(Nil)
+  }
+
+
+  // needed for chapter 7
+  final def take[A](as :List[A])(n: Int): List[A] = as match {
+    case Nil => Nil
+    case Cons(h, t) if (n < 1) => Nil
+    case Cons(h, t) if (n > 0) => Cons(h, take(t)(n-1))
+  }
+
+//    @tailrec
+  final def shovel[A](as:List[A])(bs:List[A])(n:Int):(List[A],List[A]) = (drop(as,n),append(take(as)(n),bs))
+  def split[A](as:List[A])(n:Int):(List[A],List[A]) = shovel[A](as)(Nil)(n)
+  def halve[A](as:List[A]):(List[A],List[A]) = split(as)(length(as)/2)
 
 }
 
@@ -285,6 +310,7 @@ object nith_Chapter_03 {
       , 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
       , 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89
       , 90, 91, 92, 93, 94, 95, 96, 97, 98, 99)
+    val listOfLists: List[List[Int]]=List(List.Nil,oneList,fivList,tenList)
 
     println("****** Chapter_03 ******")
     println("************************")
@@ -297,6 +323,7 @@ object nith_Chapter_03 {
     println("fivList=" + List.myString(fivList))
     println("tenList=" + List.myString(tenList))
     println("hunList=" + List.myString(hunList))
+    println("listOfLists=" + List.myString(listOfLists))
     println("****** playing with fivList ******")
     println("matchFun(fivList)=" + matchFun(fivList))
     println("tail(fivList)=" + List.tail(fivList))
@@ -410,11 +437,14 @@ object nith_Chapter_03 {
     println("stringLength(fTree(456,List(fTree(123,List(fTree(ab,List(fTree(7,Nil))),fTree(X,Nil))),fTree(abcdef,List(fTree(7,Nil))))))="
       + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", List(fTree("7", Nil))), fTree("X", Nil))), fTree("abcdef", List(fTree("7", Nil)))))))
 
-    println("*** Additional staff ***")
-    println("List.fill(-1)(\"*\") = "+List.myString(List.fill(-1)("*")))
-    println("List.fill(0)(\"*\") = "+List.myString(List.fill(0)("*")))
-    println("List.fill(1)(\"*\") = "+List.myString(List.fill(1)("*")))
-    println("List.fill(3)(\"*\") = "+List.myString(List.fill(3)("*")))
-
+    println("\n*** Additional staff ***")
+    println("List.fill(-1)(\"*\")               = "+List.myString(List.fill(-1)("*")))
+    println("List.fill(0)(\"*\")                = "+List.myString(List.fill(0)("*")))
+    println("List.fill(1)(\"*\")                = "+List.myString(List.fill(1)("*")))
+    println("List.fill(3)(\"*\")                = "+List.myString(List.fill(3)("*")))
+    println("List.shovel(tenList)(fivList)(3) = "+List.myString(List.shovel(tenList)(fivList)(3)))
+    println("List.halve(tenList)              = "+List.myString(List.halve(tenList)))
+    println("List.halve(Nil)                  = "+List.myString(List.halve(Nil)))
+    println("List.halve(List(\"a\"))            = "+List.myString(List.halve(List("a"))))
   }
 }
