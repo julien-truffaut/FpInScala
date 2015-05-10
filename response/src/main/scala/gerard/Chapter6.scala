@@ -195,6 +195,18 @@ object Chapter6 {
         _ => ()
       }
     }
+
+    def sequence[S, A](states: List[State[S, A]]): State[S, List[A]] = {
+      states.foldRight(unit[S, List[A]](List.empty[A])) {
+        case (state, acc) =>
+          for {
+            a <- state
+            as <- acc
+          } yield {
+            a :: as
+          }
+      }
+    }
   }
 
   sealed trait Input

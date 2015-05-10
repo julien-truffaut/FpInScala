@@ -53,7 +53,30 @@ object Chapter8 {
 
   object `8.4` {
 
-    case class Gen[A](sample: State[RNG, A])
+    case class Gen[A](sample: State[RNG, A]) {
+      // 8.6
+      def flatMap0[B](f: A => Gen[B]): Gen[B] = Gen {
+        State[RNG, B] {
+          rng0 =>
+            val (a, rng1) = sample.run(rng0)
+            f(a).sample.run(rng1)
+        }
+      }
+
+      def flatMap[B](f: A => Gen[B]): Gen[B] = Gen {
+        sample.flatMap(f(_).sample)
+      }
+
+      def map[B](f: A => B): Gen[B] = Gen {
+        sample.map(f)
+      }
+
+      // 8.6
+      def listOfN(size: Gen[Int], g: Gen[A]): Gen[List[A]] = {
+        size.flatMap(n => Gen.sequence(List.fill(n)(g)))
+      }
+
+    }
 
     object Gen {
       // 8.4
@@ -81,6 +104,19 @@ object Chapter8 {
               (a :: acc) -> rng0
           }
       })
+      
+      def sequence[A](gens: List[Gen[A]]): Gen[List[A]] = {
+        gens.foldRight(unit[List[A]](List.empty[A])) {
+          case (gen, acc) =>
+            for {
+              a <- gen
+              as <- acc
+            } yield {
+              a :: as
+            }
+        }
+      }
+      
     }
 
   }
