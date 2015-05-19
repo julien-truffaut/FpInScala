@@ -1,8 +1,6 @@
 package julien
 
-package fp
-
-import fp.Ch6.{SimpleRNG, RNG}
+import julien.Ch6.{SimpleRNG, RNG}
 
 import scala.annotation.tailrec
 
@@ -149,7 +147,7 @@ object Ch6 {
 
 }
 
-object StateEx extends App {
+object StateEx {
 
 
   case class State[S,+A](run: S => (A,S)){
@@ -176,6 +174,12 @@ object StateEx extends App {
 
   }
 
+  object State {
+    def constant[S, A](a: A): State[S, A] = State[S, A](s => (a, s) )
+
+    def sequence[S, A](states: List[State[S, A]]): State[S, List[A]] =
+      states.foldRight(constant[S, List[A]](Nil))((a, acc) => a.map2(acc)( (a, as) => a :: as))
+  }
 
 
   val increment = State[Int, Unit](i => () -> (i +1) )
@@ -183,10 +187,6 @@ object StateEx extends App {
   //increment.run(2) == ( (), 3 )
 
   val plus2: State[Int, Unit] = increment.flatMap( _ => increment)
-
-
-
-
 
 
   type Rand[A] = State[RNG, A]
@@ -206,22 +206,6 @@ object StateEx extends App {
 
   println( str.run(seed) )
 
-  def constant[S, A](a: A): State[S, A] = State[S, A](s => (a, s) )
-
-  def sequence[S, A](states: List[State[S, A]]): State[S, List[A]] =
-    states.foldRight(constant[S, List[A]](Nil))((a, acc) => a.map2(acc)( (a, as) => a :: as))
-
-  def sequence2[S, A](states: List[State[S, A]]): State[S, List[A]] = states match {
-    case Nil => constant(Nil)
-    case x :: xs =>
-      State[S, List[A]] { s =>
-        val (a, s2) = x.run(s)
-        val (b, s3) = sequence2(xs).run(s2)
-        (a :: b, s3)
-      }
-  }
-
-
 
   def test[S](s: S*): String = s.map(_.toString).mkString(",")
 
@@ -234,7 +218,7 @@ object StateEx extends App {
 
   val smallInt: Rand[Int] = int.map(i => i % 100)
 
-  println(sequence(List(smallInt, smallInt,smallInt)).run(seed))
+  println(State.sequence(List(smallInt, smallInt,smallInt)).run(seed))
 
 
 }
