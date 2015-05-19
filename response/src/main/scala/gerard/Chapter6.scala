@@ -177,7 +177,7 @@ object Chapter6 {
   }
 
   object State {
-    def unit[A, S](a: A) = State[S, A] {
+    def unit[S, A](a: A) = State[S, A] {
       (s: S) => (a, s)
     }
 
@@ -193,6 +193,18 @@ object Chapter6 {
     def modify0[S](s: S)(f: S => S): State[S, Unit] = get.flatMap {
       s => set(f(s)).map {
         _ => ()
+      }
+    }
+
+    def sequence[S, A](states: List[State[S, A]]): State[S, List[A]] = {
+      states.foldRight(unit[S, List[A]](List.empty[A])) {
+        case (state, acc) =>
+          for {
+            a <- state
+            as <- acc
+          } yield {
+            a :: as
+          }
       }
     }
   }
