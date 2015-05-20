@@ -212,11 +212,6 @@ object Ch07 {
 
 object nith_Chapter_07 extends App {
 
-  val addTimeStamp: String => String = str => Calendar.getInstance().getTime() + "  " + str
-  val log: Any => Unit = x => println(addTimeStamp(x.toString))
-  val logException: Exception => ExecutorService => Any => Unit = except => execService => x => {
-    System.err.println(addTimeStamp(x.toString + " = " + except))
-  }
   lazy val intSign: (Boolean, Int) => Int = (p, n) => if (p) n else 0 - n
 
   // It would be nice if the red book did say how to create an ExecutorService.
@@ -250,12 +245,12 @@ object nith_Chapter_07 extends App {
     }
   })
   val shutExecService: ExecutorService => Unit = execService => {
-    log("Shutting down now executor service\n"+execService.toString)
-    log(execService.shutdown())
-    log(execService.shutdownNow())
+    util.log("Shutting down now executor service\n"+execService.toString)
+    util.log(execService.shutdown())
+    util.log(execService.shutdownNow())
     if (!execService.awaitTermination(8, TimeUnit.SECONDS))
-      System.err.println(addTimeStamp("Executor Service did not terminate \n"+execService.toString))
-    else log("Executor terminated.\n"+execService.toString)
+      util.logException(new Exception)("Executor Service did not terminate \n"+execService.toString)
+    else util.log("Executor terminated.\n"+execService.toString)
   }
 
   // Lists
@@ -283,63 +278,63 @@ object nith_Chapter_07 extends App {
 
 
   println("\n** Exercises 7.3 and 7.4 with timeOut exceptions **")
-  log("map2Timeout(twoPar,threePar)(_ * _)(es1).get = " + Ch07.Phase3.Par.map2Timeout(twoPar,threePar)(_ * _)(es1).get)
-  log("map2Timeout(twoPar,threePar)(_ * _)(es1).get(1,TimeUnit.SECONDS) = " + Ch07.Phase3.Par.map2Timeout(twoPar,threePar)(_ * _)(es1).get(1, TimeUnit.SECONDS))
-  try {log(Ch07.Phase3.Par.map2Timeout(infinitePar,threePar)(intSign)(es1).get(2,TimeUnit.SECONDS))} catch {case e: Exception => logException(e)(es1)("map2Timeout(infinitePar,threePar)(intSign)(es1).get(2,TimeUnit.SECONDS)")}
-  try {log(Ch07.Phase3.Par.asyncF(isThereTwo)(oneStream)(es1).get(2,TimeUnit.SECONDS))} catch {case e: Exception => logException(e)(es1)("asyncF(isThereTwo)(oneStream)(es1).get(2,TimeUnit.SECONDS)")}
+  util.log("map2Timeout(twoPar,threePar)(_ * _)(es1).get = " + Ch07.Phase3.Par.map2Timeout(twoPar,threePar)(_ * _)(es1).get)
+  util.log("map2Timeout(twoPar,threePar)(_ * _)(es1).get(1,TimeUnit.SECONDS) = " + Ch07.Phase3.Par.map2Timeout(twoPar,threePar)(_ * _)(es1).get(1, TimeUnit.SECONDS))
+  try {util.log(Ch07.Phase3.Par.map2Timeout(infinitePar,threePar)(intSign)(es1).get(2,TimeUnit.SECONDS))} catch {case e: Exception => util.logException(e)("map2Timeout(infinitePar,threePar)(intSign)(es1).get(2,TimeUnit.SECONDS)")}
+  try {util.log(Ch07.Phase3.Par.asyncF(isThereTwo)(oneStream)(es1).get(2,TimeUnit.SECONDS))} catch {case e: Exception => util.logException(e)("asyncF(isThereTwo)(oneStream)(es1).get(2,TimeUnit.SECONDS)")}
 
 
   println("\n** Exercise 7.5 **")
-  log("sequence(List.Nil)(es2).get = " + Ch07.Phase3.Par.sequence(List.Nil)(es2).get)
-  log("sequence(List(twoPar,threePar))(es2).get = " + List.myString(Ch07.Phase3.Par.sequence(List(twoPar,threePar))(es2).get)+"\n")
-  log("* Let us fork 8 threads using parMap but our executor service has a pool of "+numThreads+" threads only *")
-  log("Executor Service es2="+es2+"\n")
-  log("parMap(intListList(4)(8))(filterForEven)(es2).get="+List.myString(Ch07.Phase3.Par.parMap[List[Int],List[Int]](intListList(4)(8))(filterForEven)(es2).get)+"\n")
+  util.log("sequence(List.Nil)(es2).get = " + Ch07.Phase3.Par.sequence(List.Nil)(es2).get)
+  util.log("sequence(List(twoPar,threePar))(es2).get = " + List.myString(Ch07.Phase3.Par.sequence(List(twoPar,threePar))(es2).get)+"\n")
+  util.log("* Let us fork 8 threads using parMap but our executor service has a pool of "+numThreads+" threads only *")
+  util.log("Executor Service es2="+es2+"\n")
+  util.log("parMap(intListList(4)(8))(filterForEven)(es2).get="+List.myString(Ch07.Phase3.Par.parMap[List[Int],List[Int]](intListList(4)(8))(filterForEven)(es2).get)+"\n")
 
-  log("intListList(4)(8) = "+List.myString(intListList(4)(8))+"\n")
+  util.log("intListList(4)(8) = "+List.myString(intListList(4)(8))+"\n")
 
-  log("* Let us fork 8 threads using parMapBal and the unlimited executor Executors.newCachedThreadPool *")
-  log("Executor Service esUnlimited="+esUnlimited+"\n")
-  log("parMapBal(intListList(4)(8))(filterForEven)(esUnlimited).get="+List.myString(Ch07.Phase3.Par.parMapBal[List[Int],List[Int]](intListList(4)(8))(filterForEven)(esUnlimited).get))
+  util.log("* Let us fork 8 threads using parMapBal and the unlimited executor Executors.newCachedThreadPool *")
+  util.log("Executor Service esUnlimited="+esUnlimited+"\n")
+  util.log("parMapBal(intListList(4)(8))(filterForEven)(esUnlimited).get="+List.myString(Ch07.Phase3.Par.parMapBal[List[Int],List[Int]](intListList(4)(8))(filterForEven)(esUnlimited).get))
 
   println("\n** Exercise 7.6 **")
-  log("parFilterSequential(List(0,1,2,3,4,5,6,7,8,9))(_%2==0)(es2).get) = " + List.myString(Ch07.Phase3.Par.parFilterSequential(List(0,1,2,3,4,5,6,7,8,9))(_%2==0)(es2).get))
-  log("parFilter(List(0,1,2,3,4,5,6,7,8,9))(n=>n%2==0)(es2).get         = " + List.myString(Ch07.Phase3.Par.parFilter(List(0,1,2,3,4,5,6,7,8,9))(n=>n%2==0)(es2).get))
-  log("sumIntList(List())(esUnlimited).get                              = " + Ch07.Phase3.Par.sumIntList(List())(esUnlimited).get)
-  log("sumIntList(List(42))(esUnlimited).get                            = " + Ch07.Phase3.Par.sumIntList(List(42))(esUnlimited).get)
-  log("sumIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get          = " + Ch07.Phase3.Par.sumIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get)
-  log("prodIntList(List())(esUnlimited).get                             = " + Ch07.Phase3.Par.prodIntList(List())(esUnlimited).get)
-  log("prodIntList(List(42))(esUnlimited).get                           = " + Ch07.Phase3.Par.prodIntList(List(42))(esUnlimited).get)
-  log("prodIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get         = " + Ch07.Phase3.Par.prodIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get)
-  log("maxIntList(List())(esUnlimited).get                              = " + Ch07.Phase3.Par.maxIntList(List())(esUnlimited).get)
-  log("maxIntList(List(42))(esUnlimited).get                            = " + Ch07.Phase3.Par.maxIntList(List(42))(esUnlimited).get)
-  log("maxIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get          = " + Ch07.Phase3.Par.maxIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get)
+  util.log("parFilterSequential(List(0,1,2,3,4,5,6,7,8,9))(_%2==0)(es2).get) = " + List.myString(Ch07.Phase3.Par.parFilterSequential(List(0,1,2,3,4,5,6,7,8,9))(_%2==0)(es2).get))
+  util.log("parFilter(List(0,1,2,3,4,5,6,7,8,9))(n=>n%2==0)(es2).get         = " + List.myString(Ch07.Phase3.Par.parFilter(List(0,1,2,3,4,5,6,7,8,9))(n=>n%2==0)(es2).get))
+  util.log("sumIntList(List())(esUnlimited).get                              = " + Ch07.Phase3.Par.sumIntList(List())(esUnlimited).get)
+  util.log("sumIntList(List(42))(esUnlimited).get                            = " + Ch07.Phase3.Par.sumIntList(List(42))(esUnlimited).get)
+  util.log("sumIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get          = " + Ch07.Phase3.Par.sumIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get)
+  util.log("prodIntList(List())(esUnlimited).get                             = " + Ch07.Phase3.Par.prodIntList(List())(esUnlimited).get)
+  util.log("prodIntList(List(42))(esUnlimited).get                           = " + Ch07.Phase3.Par.prodIntList(List(42))(esUnlimited).get)
+  util.log("prodIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get         = " + Ch07.Phase3.Par.prodIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get)
+  util.log("maxIntList(List())(esUnlimited).get                              = " + Ch07.Phase3.Par.maxIntList(List())(esUnlimited).get)
+  util.log("maxIntList(List(42))(esUnlimited).get                            = " + Ch07.Phase3.Par.maxIntList(List(42))(esUnlimited).get)
+  util.log("maxIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get          = " + Ch07.Phase3.Par.maxIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get)
   Thread.sleep(100)
   println("\n** Exercise 7.11 **")
-  log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(1)(esUnlimited).get = " + Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(1)(esUnlimited).get)
-  log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(2)(esUnlimited).get = " + Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(2)(esUnlimited).get)
-  log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(3)(esUnlimited).get = " + Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(3)(esUnlimited).get)
-  try {log(Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(4)(es1).get)} catch {case e: Exception => logException(e)(es1)("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(4)(es1).get")}
-  log("choice(unit(false))(sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + Ch07.Phase3.Par.choice(Ch07.Phase3.Par.unit(false))(Ch07.Phase3.Par.sumIntList(List(1,2,3,4,5,6,7,8,9,10)), Ch07.Phase3.Par.prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get)
-  log("choice(unit(true)) (sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + Ch07.Phase3.Par.choice(Ch07.Phase3.Par.unit(true))(Ch07.Phase3.Par.sumIntList(List(1,2,3,4,5,6,7,8,9,10)), Ch07.Phase3.Par.prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get)
+  util.log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(1)(esUnlimited).get = " + Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(1)(esUnlimited).get)
+  util.log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(2)(esUnlimited).get = " + Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(2)(esUnlimited).get)
+  util.log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(3)(esUnlimited).get = " + Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(3)(esUnlimited).get)
+  try {util.log(Ch07.Phase3.Par.sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(4)(es1).get)} catch {case e: Exception => util.logException(e)("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(4)(es1).get")}
+  util.log("choice(unit(false))(sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + Ch07.Phase3.Par.choice(Ch07.Phase3.Par.unit(false))(Ch07.Phase3.Par.sumIntList(List(1,2,3,4,5,6,7,8,9,10)), Ch07.Phase3.Par.prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get)
+  util.log("choice(unit(true)) (sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + Ch07.Phase3.Par.choice(Ch07.Phase3.Par.unit(true))(Ch07.Phase3.Par.sumIntList(List(1,2,3,4,5,6,7,8,9,10)), Ch07.Phase3.Par.prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get)
 
   println("\n** Exercise 7.13 **")
-  log("chooser(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.chooser(Ch07.Phase3.Par.unit(2))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("chooser(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.chooser(Ch07.Phase3.Par.unit(5))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("chooser(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.chooser(Ch07.Phase3.Par.unit(10))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("chooser(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.chooser(Ch07.Phase3.Par.unit(2))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("chooser(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.chooser(Ch07.Phase3.Par.unit(5))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("chooser(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.chooser(Ch07.Phase3.Par.unit(10))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
 
   println("\n** Exercise 7.14 **")
-  log("flatMap users \"inner\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the inner Par[A] to A")
-  log("flatMap(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap(Ch07.Phase3.Par.unit(2))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("flatMap(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap(Ch07.Phase3.Par.unit(5))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("flatMap(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap(Ch07.Phase3.Par.unit(10))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("flatMap2 users \"outer\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the outer Par[Par[A]] to Par[A]")
-  log("flatMap2(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap2(Ch07.Phase3.Par.unit(2))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("flatMap2(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap2(Ch07.Phase3.Par.unit(5))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
-  log("flatMap2(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap2(Ch07.Phase3.Par.unit(10))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get+"\n")
+  util.log("flatMap users \"inner\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the inner Par[A] to A")
+  util.log("flatMap(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap(Ch07.Phase3.Par.unit(2))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("flatMap(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap(Ch07.Phase3.Par.unit(5))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("flatMap(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap(Ch07.Phase3.Par.unit(10))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("flatMap2 users \"outer\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the outer Par[Par[A]] to Par[A]")
+  util.log("flatMap2(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap2(Ch07.Phase3.Par.unit(2))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("flatMap2(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap2(Ch07.Phase3.Par.unit(5))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get)
+  util.log("flatMap2(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + Ch07.Phase3.Par.flatMap2(Ch07.Phase3.Par.unit(10))(n => Ch07.Phase3.Par.sumIntList(intList(n)(n)))(esUnlimited).get+"\n")
 
-  log("********************************************************************\n")
-  log("*** Shutting down the executor services es1, es2 and esunlimited ***\n")
+  util.log("********************************************************************\n")
+  util.log("*** Shutting down the executor services es1, es2 and esunlimited ***\n")
   shutExecService(es1)
   shutExecService(es2)
   shutExecService(esUnlimited)

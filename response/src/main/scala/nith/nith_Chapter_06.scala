@@ -1,3 +1,4 @@
+import Ch04_Option.{None, Option, Some}
 object Ch06 {
 
   trait RNG {
@@ -9,6 +10,7 @@ object Ch06 {
       val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
       val nextRNG = SimpleRNG(newSeed)
       val n = (newSeed >>> 16).toInt
+//      util.log("...SimpleRNG.nextInt: seed="+seed+"  n="+n)
       (n, nextRNG)
     }
   }
@@ -183,6 +185,7 @@ object Ch06 {
       res
     }
 
+
     final def zip[B](bState: State[S, B]): State[S, (A, B)]
     // QUESTION: Why does IntelliJ complain about the type of bRand.run(state)._1 ??? The compiler does not !
     //    = State[S, (A, B)](state => ((this.run(state)._1, bRand.run(state)._1), this.run(state)._2))
@@ -192,7 +195,8 @@ object Ch06 {
       ((a, b), state3)
     })
 
-    final def map2[B, C](bState: State[S, B])(f: (A, B) => C): State[S, C]
+    // slow but beautiful using zip
+    final def map2_slow[B, C](bState: State[S, B])(f: (A, B) => C): State[S, C]
     = {
       val abState: State[S, (A, B)] = this.zip(bState)
       abState.flatMap[C]((ab => ab match {
@@ -203,6 +207,14 @@ object Ch06 {
           (f(a2, b2), state2)
         })
       }))
+    }
+
+    final def map2[B, C](bState: State[S, B])(f: (A, B) => C): State[S, C] = {
+      lazy val g:A => State[S, C] = a => State[S, C]( state => {
+        val bRun : (B,S) = bState.run(state)
+        (f(a,bRun._1),bRun._2)
+      })
+      this.flatMap[C](g)
     }
 
     // I know that this is inefficient but it is beautiful.
@@ -280,124 +292,125 @@ object nith_Chapter_06 extends App {
 
   val SimpleRNGstream: (Long => Ch05.Stream[Int]) = fstSeed => Ch05.unfold[Int, Ch06.RNG](Ch06.SimpleRNG(fstSeed))(rng => Some(rng.nextInt))
 
-  println("****** Chapter_06 ******")
+  util.log("****** Chapter_06 ******")
   println("\n* Some experssions using Int.MaxValue and Int.MinValue *")
-  println("Int.MinValue = %s".format(Int.MinValue))
-  println("Int.MaxValue =  %s".format(Int.MaxValue))
-  println("Long.MinValue = %s".format(Long.MinValue))
-  println("Long.MaxValue =  %s".format(Long.MaxValue))
-  println("rng0.nextInt = %s".format(rng0.nextInt))
-  println("-1-Int.MinValue = %s".format(-1 - Int.MinValue))
-  println("Int.MinValue-Int.MinValue = %s".format(Int.MinValue - Int.MinValue))
-  println("(-1)*Int.MaxValue-Int.MinValue = %s".format((-1) * Int.MaxValue - Int.MinValue))
-  println("(Int.MinValue/2)-(Int.MinValue/2) = %s".format((Int.MinValue / 2) - Int.MinValue / 2))
-  println("(Int.MaxValue/2)-(Int.MinValue/2) = %s".format((Int.MaxValue / 2) - Int.MinValue / 2))
+  util.log("Int.MinValue = %s".format(Int.MinValue))
+  util.log("Int.MaxValue =  %s".format(Int.MaxValue))
+  util.log("Long.MinValue = %s".format(Long.MinValue))
+  util.log("Long.MaxValue =  %s".format(Long.MaxValue))
+  util.log("rng0.nextInt = %s".format(rng0.nextInt))
+  util.log("-1-Int.MinValue = %s".format(-1 - Int.MinValue))
+  util.log("Int.MinValue-Int.MinValue = %s".format(Int.MinValue - Int.MinValue))
+  util.log("(-1)*Int.MaxValue-Int.MinValue = %s".format((-1) * Int.MaxValue - Int.MinValue))
+  util.log("(Int.MinValue/2)-(Int.MinValue/2) = %s".format((Int.MinValue / 2) - Int.MinValue / 2))
+  util.log("(Int.MaxValue/2)-(Int.MinValue/2) = %s".format((Int.MaxValue / 2) - Int.MinValue / 2))
   println("\nsimpleRNGiterator(8) = %s".format(simpleRNGiterator(8).myString))
-  println("SimpleRNG(Long.MinValue).nextInt = %s".format(Ch06.SimpleRNG(Long.MinValue).nextInt))
-  println("SimpleRNG(-1).nextInt = %s".format(Ch06.SimpleRNG(-1).nextInt))
-  println("SimpleRNG(Long.MaxValue).nextInt = %s".format(Ch06.SimpleRNG(Long.MaxValue).nextInt))
-  println("SimpleRNGstream(Long.MinValue).take(10) = %s".format(SimpleRNGstream(Long.MinValue).take(10).myString))
-  println("SimpleRNGstream(0).take(10) = %s".format(SimpleRNGstream(0).take(10).myString))
-  println("SimpleRNGstream(42).take(10) = %s".format(SimpleRNGstream(42).take(10).myString))
+  util.log("SimpleRNG(Long.MinValue).nextInt = %s".format(Ch06.SimpleRNG(Long.MinValue).nextInt))
+  util.log("SimpleRNG(-1).nextInt = %s".format(Ch06.SimpleRNG(-1).nextInt))
+  util.log("SimpleRNG(Long.MaxValue).nextInt = %s".format(Ch06.SimpleRNG(Long.MaxValue).nextInt))
+  util.log("SimpleRNGstream(Long.MinValue).take(10) = %s".format(SimpleRNGstream(Long.MinValue).take(10).myString))
+  util.log("SimpleRNGstream(0).take(20) = %s".format(SimpleRNGstream(0).take(20).myString))
+  util.log("SimpleRNGstream(42).take(20) = %s".format(SimpleRNGstream(42).take(20).myString))
 
   println("\n** Exercise 6.1 **")
-  println("unfold(rng0)(rng => Some(nonNegativeInt(rng))).take(20)\n  = %s"
+  util.log("unfold(rng0)(rng => Some(nonNegativeInt(rng))).take(20)\n  = %s"
     .format(Ch05.unfold[Int, Ch06.RNG](rng0)(rng => Some(Ch06.nonNegativeInt(rng))).take(20).myString))
 
   println("\n** Exercise 6.2 **")
-  println("unfold(rng0)(rng => Some(double(rng))).take(20)\n  = %s"
+  util.log("unfold(rng0)(rng => Some(double(rng))).take(20)\n  = %s"
     .format(Ch05.unfold[Double, Ch06.RNG](rng0)(rng => Some(Ch06.double(rng))).take(20).myString))
 
   println("\n** Exercise 6.3 **")
-  println("unfold(SimpleRNG(-1))(rng => Some(intDouble(rng))).take(10)\n  = %s"
+  util.log("unfold(SimpleRNG(-1))(rng => Some(intDouble(rng))).take(10)\n  = %s"
     .format(Ch05.unfold[(Int, Double), Ch06.RNG](Ch06.SimpleRNG(-1))(rng => Some(Ch06.intDouble(rng))).take(10).myString))
-  println("unfold(SimpleRNG(-1))(rng => Some(doubleInt(rng))).take(10)\n  = %s"
+  util.log("unfold(SimpleRNG(-1))(rng => Some(doubleInt(rng))).take(10)\n  = %s"
     .format(Ch05.unfold[(Double, Int), Ch06.RNG](Ch06.SimpleRNG(-1))(rng => Some(Ch06.doubleInt(rng))).take(10).myString))
-  println("unfold(SimpleRNG(-1))(rng => Some(double3(rng))).take(10)\n  = %s"
+  util.log("unfold(SimpleRNG(-1))(rng => Some(double3(rng))).take(10)\n  = %s"
     .format(Ch05.unfold[(Double, Double, Double), Ch06.RNG](Ch06.SimpleRNG(-1))(rng => Some(Ch06.double3(rng))).take(10).myString))
 
   println("\n** Exercise 6.4 **")
-  println("ints(-1)(rng0) = %s".format(Ch06.ints(-1)(rng0)))
-  println("ints(0)(rng0) = %s".format(Ch06.ints(0)(rng0)))
-  println("ints(1)(rng0) = %s".format(Ch06.ints(1)(rng0)))
-  println("ints(3)(rng0) = %s".format(Ch06.ints(3)(rng0)))
-  println("ints(10)(rng0) = %s".format(Ch06.ints(10)(rng0)))
+  util.log("ints(-1)(rng0) = %s".format(Ch06.ints(-1)(rng0)))
+  util.log("ints(0)(rng0) = %s".format(Ch06.ints(0)(rng0)))
+  util.log("ints(1)(rng0) = %s".format(Ch06.ints(1)(rng0)))
+  util.log("ints(3)(rng0) = %s".format(Ch06.ints(3)(rng0)))
+  util.log("ints(10)(rng0) = %s".format(Ch06.ints(10)(rng0)))
 
   println("\n** Exercise 6.5 **")
-  println("unfold(rng0)(rng => Some(double(rng))).take(20)\n  = %s"
+  util.log("unfold(rng0)(rng => Some(double(rng))).take(20)\n  = %s"
     .format(Ch05.unfold[Double, Ch06.RNG](rng0)(rng => Some(Ch06.double(rng))).take(10).myString))
-  println("unfold2(rng0)(3)(doubleMap)\n  = %s"
+  util.log("unfold2(rng0)(3)(doubleMap)\n  = %s"
     .format(Ch05.unfold2[Double, Ch06.RNG](10)(rng0)(Ch06.doubleMap).myString))
 
   println("\n** Exercise 6.7 **")
-  println("intsSequence(-1)(rng0) = %s".format(Ch06.intsSequence(-1)(rng0)))
-  println("intsSequence(0)(rng0) = %s".format(Ch06.intsSequence(0)(rng0)))
-  println("intsSequence(1)(rng0) = %s".format(Ch06.intsSequence(1)(rng0)))
-  println("intsSequence(3)(rng0) = %s".format(Ch06.intsSequence(3)(rng0)))
-  println("intsSequence(10)(rng0) = %s".format(Ch06.intsSequence(10)(rng0)))
+  util.log("intsSequence(-1)(rng0) = %s".format(Ch06.intsSequence(-1)(rng0)))
+  util.log("intsSequence(0)(rng0)  = %s".format(Ch06.intsSequence(0)(rng0)))
+  util.log("intsSequence(1)(rng0)  = %s".format(Ch06.intsSequence(1)(rng0)))
+  util.log("intsSequence(3)(rng0)  = %s".format(Ch06.intsSequence(3)(rng0)))
+  util.log("intsSequence(10)(rng0) = %s".format(Ch06.intsSequence(10)(rng0)))
+  util.log("intsSequence(25)(rng0) = %s".format(Ch06.intsSequence(25)(rng0)))
 
   println("\n** Exercise 6.8 **")
-  println("unfold2(20)(rng0)(nonNegativeLessThan(20)        = %s"
+  util.log("unfold2(20)(rng0)(nonNegativeLessThan(20)        = %s"
     .format(Ch05.unfold2[Int, Ch06.RNG](20)(rng0)(Ch06.nonNegativeLessThan(20)).myString))
-  println("unfold2(20)(rng0)(nonNegativeLessThanFlatMap(20) = %s"
+  util.log("unfold2(20)(rng0)(nonNegativeLessThanFlatMap(20) = %s"
     .format(Ch05.unfold2[Int, Ch06.RNG](20)(rng0)(Ch06.nonNegativeLessThanFlatMap(20)).myString))
 
   println("\n** Exercise 6.9 **")
-  println("intsSequenceFlat(10)(rng0) = %s".format(Ch06.intsSequenceFlat(10)(rng0)))
+  util.log("intsSequenceFlat(10)(rng0) = %s".format(Ch06.intsSequenceFlat(10)(rng0)))
 
-  println("** Exercise 6.10 **")
-  println("unfold2(10)(rng0)(rng => nonNegativeInt(rng))          = %s"
+  util.log("** Exercise 6.10 **")
+  util.log("unfold2(10)(rng0)(rng => nonNegativeInt(rng))          = %s"
     .format(Ch05.unfold2[Int, Ch06.RNG](10)(rng0)(rng => Ch06.nonNegativeInt(rng)).myString))
-  println("unfold2(10)(rng0)(rng => nonNegativeIntRandState.run(rng)) = %s"
+  util.log("unfold2(10)(rng0)(rng => nonNegativeIntRandState.run(rng)) = %s"
     .format(Ch05.unfold2[Int, Ch06.RNG](10)(rng0)(rng => Ch06.nonNegativeIntRandState.run(rng)).myString))
-  println("unfold2(10)(rng0)(rng => double(rng))          = %s"
+  util.log("unfold2(10)(rng0)(rng => double(rng))          = %s"
     .format(Ch05.unfold2[Double, Ch06.RNG](10)(rng0)(rng => Ch06.double(rng)).myString))
-  println("unfold2(10)(rng0)(rng => doubleRandState.run(rng)) = %s"
+  util.log("unfold2(10)(rng0)(rng => doubleRandState.run(rng)) = %s"
     .format(Ch05.unfold2[Double, Ch06.RNG](10)(rng0)(rng => Ch06.doubleRandState.run(rng)).myString))
-  println("unfold2(20)(rng0)(nonNegativeLessThan(20)                       = %s"
+  util.log("unfold2(20)(rng0)(nonNegativeLessThan(20)                       = %s"
     .format(Ch05.unfold2[Int, Ch06.RNG](20)(rng0)(Ch06.nonNegativeLessThan(20)).myString))
-  println("unfold2(20)(rng0)(rng => nonNegativeLessThanState(20).run(rng)) = %s"
+  util.log("unfold2(20)(rng0)(rng => nonNegativeLessThanState(20).run(rng)) = %s"
     .format(Ch05.unfold2[Int, Ch06.RNG](20)(rng0)(rng => Ch06.nonNegativeLessThanState(20).run(rng)).myString))
-  println("unfold2(10)(rng0)(rng => nonNegativeIntRandState.zip(doubleRandState).run(rng))) = %s"
+  util.log("unfold2(10)(rng0)(rng => nonNegativeIntRandState.zip(doubleRandState).run(rng))) = %s"
     .format(Ch05.unfold2[(Int, Double), Ch06.RNG](10)(rng0)(rng => Ch06.nonNegativeIntRandState.zip(Ch06.doubleRandState).run(rng)).myString))
 
 
 
   println("\nsimpleRNGiterator(16) = %s".format(simpleRNGiterator(16).myString))
   println("\nintsSequenceFlat(0)(rng0)       = %s".format(Ch06.intsSequenceFlat(0)(rng0)))
-  println("intsSequenceState(0).run(rng0)  = %s".format(Ch06.intsSequenceState(0).run(rng0)))
+  util.log("intsSequenceState(0).run(rng0)  = %s".format(Ch06.intsSequenceState(0).run(rng0)))
   println("\nintsSequenceFlat(1)(rng0)       = %s".format(Ch06.intsSequenceFlat(1)(rng0)))
-  println("intsSequenceState(1).run(rng0)  = %s".format(Ch06.intsSequenceState(1).run(rng0)))
+  util.log("intsSequenceState(1).run(rng0)  = %s".format(Ch06.intsSequenceState(1).run(rng0)))
   println("\nintsSequenceFlat(2)(rng0)       = %s".format(Ch06.intsSequenceFlat(2)(rng0)))
-  println("intsSequenceState(2).run(rng0)  = %s".format(Ch06.intsSequenceState(2).run(rng0)))
+  util.log("intsSequenceState(2).run(rng0)  = %s".format(Ch06.intsSequenceState(2).run(rng0)))
   println("\nintsSequenceFlat(3)(rng0)       = %s".format(Ch06.intsSequenceFlat(3)(rng0)))
-  println("intsSequenceState(3).run(rng0)  = %s".format(Ch06.intsSequenceState(3).run(rng0)))
+  util.log("intsSequenceState(3).run(rng0)  = %s".format(Ch06.intsSequenceState(3).run(rng0)))
   println("\nintsSequenceFlat(4)(rng0)       = %s".format(Ch06.intsSequenceFlat(4)(rng0)))
-  println("intsSequenceState(4).run(rng0)  = %s".format(Ch06.intsSequenceState(4).run(rng0)))
-  println("intsSequenceFlat(10)(rng0)      = %s".format(Ch06.intsSequenceFlat(10)(rng0)))
-  println("intsSequenceState(10).run(rng0) = %s".format(Ch06.intsSequenceState(10).run(rng0)))
+  util.log("intsSequenceState(4).run(rng0)  = %s".format(Ch06.intsSequenceState(4).run(rng0)))
+  util.log("intsSequenceFlat(10)(rng0)      = %s".format(Ch06.intsSequenceFlat(10)(rng0)))
+  util.log("intsSequenceState(10).run(rng0) = %s".format(Ch06.intsSequenceState(10).run(rng0)))
 
   println("\nunfold2(rng0)(3)(doubleMap) = %s"
     .format(Ch05.unfold2[Double, Ch06.RNG](16)(rng0)(Ch06.doubleMap).myString))
-  println("unfold2(rng0)(3)(doubleState) = %s"
+  util.log("unfold2(rng0)(3)(doubleState) = %s"
     .format(Ch05.unfold2[Double, Ch06.RNG](8)(rng0)(rng => Ch06.doubleState.run(rng)).myString))
 
   println("\n** Exercise 6.11 **")
-  println("simulateMachine().run(Machine(true,1,1)) = %s".format(Ch06.simulateMachine(List.Nil).run(Ch06.Machine(true, 1, 1))))
-  println("simulateMachine(Coin,Turn,Turn,Turn,Turn,Coin,Turn).run(Machine(true,0,42)) = %s"
+  util.log("simulateMachine().run(Machine(true,1,1)) = %s".format(Ch06.simulateMachine(List.Nil).run(Ch06.Machine(true, 1, 1))))
+  util.log("simulateMachine(Coin,Turn,Turn,Turn,Turn,Coin,Turn).run(Machine(true,0,42)) = %s"
     .format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Coin, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Coin, Ch06.Turn)).run(Ch06.Machine(true, 0, 42))))
-  println("simulateMachine(Coin).run(Machine(false,24,42)) = %s".format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Coin)).run(Ch06.Machine(false, 24, 42))))
-  println("simulateMachine(Turn).run(Machine(true,24,42)) = %s".format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Turn)).run(Ch06.Machine(true, 24, 42))))
-  println("simulateMachine(Coin,Turn).run(Machine(true,3,42)) = %s"
+  util.log("simulateMachine(Coin).run(Machine(false,24,42)) = %s".format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Coin)).run(Ch06.Machine(false, 24, 42))))
+  util.log("simulateMachine(Turn).run(Machine(true,24,42)) = %s".format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Turn)).run(Ch06.Machine(true, 24, 42))))
+  util.log("simulateMachine(Coin,Turn).run(Machine(true,3,42)) = %s"
     .format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Coin, Ch06.Turn)).run(Ch06.Machine(true, 3, 42))))
-  println("simulateMachine(Coin,Turn,Turn,Turn,Turn,Coin,Turn).run(Machine(true,24,42)) = %s"
+  util.log("simulateMachine(Coin,Turn,Turn,Turn,Turn,Coin,Turn).run(Machine(true,24,42)) = %s"
     .format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Coin, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Coin, Ch06.Turn)).run(Ch06.Machine(true, 24, 42))))
-  println("simulateMachine(Turn,Coin,Turn,Turn,Coin,Turn,Turn,Coin,Turn).run(Machine(true,24,42)) = %s"
+  util.log("simulateMachine(Turn,Coin,Turn,Turn,Coin,Turn,Turn,Coin,Turn).run(Machine(true,24,42)) = %s"
     .format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Turn, Ch06.Coin, Ch06.Turn, Ch06.Turn, Ch06.Coin, Ch06.Turn, Ch06.Turn, Ch06.Coin, Ch06.Turn)).run(Ch06.Machine(true, 24, 42))))
-  println("simulateMachine(Coin,Coin,Coin,Coin,Coin,Coin,Coin,Coin,Coin).run(Machine(true,24,42)) = %s"
+  util.log("simulateMachine(Coin,Coin,Coin,Coin,Coin,Coin,Coin,Coin,Coin).run(Machine(true,24,42)) = %s"
     .format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Coin, Ch06.Coin, Ch06.Coin, Ch06.Coin, Ch06.Coin, Ch06.Coin, Ch06.Coin, Ch06.Coin, Ch06.Coin)).run(Ch06.Machine(true, 24, 42))))
-  println("simulateMachine(Turn,Turn,Turn,Turn,Turn,Turn,Turn,Turn,Turn).run(Machine(true,24,42)) = %s"
+  util.log("simulateMachine(Turn,Turn,Turn,Turn,Turn,Turn,Turn,Turn,Turn).run(Machine(true,24,42)) = %s"
     .format(Ch06.simulateMachine(List[Ch06.Input](Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn, Ch06.Turn)).run(Ch06.Machine(true, 24, 42))))
-  println("*** Chapter 06 Done ***")
+  util.log("*** Chapter 06 Done ***")
 
 }
