@@ -51,90 +51,103 @@ object Chapter8 {
 
   }
 
-  object `8.4` {
-
-    case class Gen[A](sample: State[RNG, A]) {
-      // 8.6
-      def flatMap0[B](f: A => Gen[B]): Gen[B] = Gen {
-        State[RNG, B] {
-          rng0 =>
-            val (a, rng1) = sample.run(rng0)
-            f(a).sample.run(rng1)
-        }
-      }
-
-      def flatMap[B](f: A => Gen[B]): Gen[B] = Gen {
-        sample.flatMap(f(_).sample)
-      }
-
-      def map[B](f: A => B): Gen[B] = Gen {
-        sample.map(f)
-      }
-
-      // 8.6
-      def listOfN(size: Gen[Int], g: Gen[A]): Gen[List[A]] = {
-        size.flatMap(n => Gen.sequence(List.fill(n)(g)))
-      }
-
-    }
-
-    object Gen {
-      // 8.4
-      def choose(start: Int, stopExclusive: Int): Gen[Int] = Gen[Int] {
-        State[RNG, Int] {
-          rng =>
-            val (i, rng0) = rng.nextInt
-            val scaled = start + (stopExclusive - start) * i.toLong / Int.MaxValue
-            scaled.toInt -> rng0
-        }
-      }
-
-      // 8.5
-      def unit[A](a: => A): Gen[A] = Gen(State.unit[RNG, A](a))
-
-      def boolean: Gen[Boolean] = Gen[Boolean] {
-        State[RNG, Int](_.nextInt).map(_ % 2 == 0)
-      }
-
-      def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = Gen(State[RNG, List[A]] {
-        rng =>
-          List.fill(n)(g).foldLeft(List.empty[A] -> rng) {
-            case ((acc, rng), gen) =>
-              val (a, rng0) = gen.sample.run(rng)
-              (a :: acc) -> rng0
-          }
-      })
-      
-      def sequence[A](gens: List[Gen[A]]): Gen[List[A]] = {
-        gens.foldRight(unit[List[A]](List.empty[A])) {
-          case (gen, acc) =>
-            for {
-              a <- gen
-              as <- acc
-            } yield {
-              a :: as
-            }
-        }
-      }
-      
-    }
-
-  }
-
   object Prop {
     def forAll[A](gen: Gen[A])(f: A => Boolean): Prop = ???
 
   }
 
   object Gen {
-    def unit[A](a: => A): Gen[A] = ???
+    // 8.4
+    def choose(start: Int, stopExclusive: Int): Gen[Int] = Gen[Int] {
+      State[RNG, Int] {
+        rng =>
+          val (i, rng0) = rng.nextInt
+          val scaled = start + (stopExclusive - start) * i.toLong / Int.MaxValue
+          scaled.toInt -> rng0
+      }
+    }
+
+    // 8.4
+    def choose(start: Double, stopExclusive: Double): Gen[Double] = Gen[Double] {
+      State[RNG, Double] {
+        rng =>
+          val (d, rng0) = double(rng)
+          val range = stopExclusive - start
+          val scaled = start + range * d
+          scaled -> rng0
+      }
+    }
+
+    // 8.5
+    def unit[A](a: => A): Gen[A] = Gen(State.unit[RNG, A](a))
+
+    def boolean: Gen[Boolean] = Gen[Boolean] {
+      State[RNG, Int](_.nextInt).map(_ % 2 == 0)
+    }
+
+    def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = Gen(State[RNG, List[A]] {
+      rng =>
+        List.fill(n)(g).foldLeft(List.empty[A] -> rng) {
+          case ((acc, rng), gen) =>
+            val (a, rng0) = gen.sample.run(rng)
+            (a :: acc) -> rng0
+        }
+    })
+
+    def sequence[A](gens: List[Gen[A]]): Gen[List[A]] = {
+      gens.foldRight(unit[List[A]](List.empty[A])) {
+        case (gen, acc) =>
+          for {
+            a <- gen
+            as <- acc
+          } yield {
+            a :: as
+          }
+      }
+    }
+
+    def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] = {
+      boolean.flatMap {
+        b => if (b) g1 else g2
+      }
+    }
+
+    def weighted[A](g1: (Gen[A], Double), g2: (Gen[A], Double)): Gen[A] = {
+      choose(0, g1._2).flatMap {
+        w1 =>
+          choose(0, g2._2).flatMap {
+            w2 => if (w1 > w2) g1._1 else g2._1
+          }
+      }
+    }
+
   }
 
-  trait Gen[A] {
-    def map[A, B](f: A => B): Gen[B] = ???
+  case class Gen[A](sample: State[RNG, A]) {
+    // 8.6
+    def flatMap0[B](f: A => Gen[B]): Gen[B] = Gen {
+      State[RNG, B] {
+        rng0 =>
+          val (a, rng1) = sample.run(rng0)
+          f(a).sample.run(rng1)
+      }
+    }
 
-    def flatMap[A, B](f: A => Gen[B]): Gen[B] = ???
+    def flatMap[B](f: A => Gen[B]): Gen[B] = Gen {
+      sample.flatMap(f(_).sample)
+    }
+
+    def map[B](f: A => B): Gen[B] = Gen {
+      sample.map(f)
+    }
+
+    // 8.6
+    def listOfN(size: Gen[Int], g: Gen[A]): Gen[List[A]] = {
+      size.flatMap(n => Gen.sequence(List.fill(n)(g)))
+    }
+
   }
+
 
   trait SGen[+A] {
 
