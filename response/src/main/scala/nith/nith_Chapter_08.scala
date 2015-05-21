@@ -32,7 +32,7 @@ object Ch08 {
           def check: Either[(FailedCase, SuccessCount), SuccessCount]
         }*/
 
-    case class Gen[A](sample: State[RNG, A]) {
+    case class Gen[+A](sample: State[RNG, A]) {
       // 8.6 Implement flatMap, and then use it to implement this more dynamic version of listOfN.
       def flatMap[B](f: A => Gen[B]): Gen[B] = new Gen[B](this.sample.flatMap[B](f(_).sample))
 
@@ -150,7 +150,7 @@ object Ch08 {
       }
     }
 
-    case class SGen[A](forSize: Int => Gen[A]) {
+    case class SGen[+A](forSize: Int => Gen[A]) {
       // 8.11 Not surprisingly, SGen at a minimum supports many of the same operations as Gen, and the implementations
       // are rather mechanical. Define some convenience functions on SGen that simply delegate to the corresponding
       // functions on Gen.
