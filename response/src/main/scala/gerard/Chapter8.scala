@@ -1,6 +1,7 @@
 package gerard
 
 import gerard.Chapter6._
+import gerard.Chapter8.`8.9`.{Falsified, Passed, Prop}
 
 object Chapter8 {
 
@@ -51,30 +52,22 @@ object Chapter8 {
 
   }
 
-  object Prop {
-    def forAll[A](gen: Gen[A])(f: A => Boolean): Prop = ???
-
-  }
-
   object Gen {
     // 8.4
     def choose(start: Int, stopExclusive: Int): Gen[Int] = Gen[Int] {
-      State[RNG, Int] {
-        rng =>
-          val (i, rng0) = rng.nextInt
+      State[RNG, Int](Chapter6.nonNegativeInt).map {
+        i =>
           val scaled = start + (stopExclusive - start) * i.toLong / Int.MaxValue
-          scaled.toInt -> rng0
+          scaled.toInt
       }
     }
 
     // 8.4
     def choose(start: Double, stopExclusive: Double): Gen[Double] = Gen[Double] {
-      State[RNG, Double] {
-        rng =>
-          val (d, rng0) = double(rng)
+      State[RNG, Double](Chapter6.double).map {
+        d =>
           val range = stopExclusive - start
-          val scaled = start + range * d
-          scaled -> rng0
+          start + range * d
       }
     }
 
@@ -148,9 +141,99 @@ object Chapter8 {
 
   }
 
+  object `8.9` {
+    type FailedCase = String
+    type SuccessCount = Int
+    type TestCases = Int
 
-  trait SGen[+A] {
+    sealed trait Result {
+      def isFalsified: Boolean
+    }
+
+    case object Passed extends Result {
+      def isFalsified = false
+    }
+
+    case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
+      def isFalsified = true
+    }
+
+    object Prop {
+      def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
+        (n, rng) => randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
+          case (a, i) => try {
+            if (f(a)) Passed else Falsified(a.toString, i)
+          } catch {
+            case e: Exception => Falsified(buildMsg(a, e), i)
+          }
+        }.find(_.isFalsified).getOrElse(Passed)
+      }
+
+      import Stream._
+
+      def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+        f(z) match {
+          case Some((a, s)) => cons(a, unfold(s)(f))
+          case None         => Empty
+        }
+      }
+
+      def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] =
+        unfold(rng)(rng => Some(g.sample.run(rng)))
+
+      def buildMsg[A](s: A, e: Exception): String =
+        s"test case: $s\n" +
+          s"generated an exception: ${e.getMessage}\n" +
+          s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+    }
+
+    case class Prop(run: (TestCases, RNG) => Result,
+                    label: String = "") {
+      def &&(p: Prop): Prop = Prop({
+        case (testCases, rng) =>
+          run(testCases, rng) match {
+            case Passed                          =>
+              p.run(testCases, rng)
+            case f@Falsified(failure, successes) =>
+              f
+          }
+      }, "&&")
+
+      def ||(p: Prop): Prop = Prop {
+        case (testCases, rng) =>
+          run(testCases, rng) match {
+            case Passed                        =>
+              Passed
+            case Falsified(failure, successes) =>
+              p.run(testCases, rng)
+          }
+      }
+    }
 
   }
 
+  def main(args: Array[String]) {
+    // tests
+
+    import `8.9`._
+    def report(result: Result) = result match {
+      case Passed                        =>
+        println("ok.")
+      case Falsified(failure, successes) =>
+        println(s"ko: found counter example <$failure> (after $successes successes).")
+    }
+
+    report(Prop.forAll(Gen.choose(0, 10)) {
+      b =>
+        println(b)
+        b < 8
+    }.run(10, SimpleRNG(42)))
+
+    report((Prop.forAll(Gen.choose(0, 10)) {
+      b => b < 8
+    } && Prop.forAll(Gen.choose(0, 10)) {
+      b => b > 1
+    }).run(10, SimpleRNG(42)))
+
+  }
 }
