@@ -116,7 +116,24 @@ object Chapter8 {
 
   }
 
+  // 8.11 Define some convenience functions on SGen that simply delegate to the corresponding functions on Gen.
+    trait SGen[+A] {
+      def forSize[AA >: A](i: Int): Gen[AA]
+    }
+
+//  case class SGen[+A](forSize: Int => Gen[A]) {
+
+    //    def map[B](f: A => B): SGen[B] = SGen[B] {
+    //      size: Int => forSize(size).map(f)
+    //    }
+//    def map[B, AA >: A](f: AA => B): SGen[B] = SGen[B] {
+//      size: Int => forSize(size).map(f)
+//    }
+//  }
+
   case class Gen[A](sample: State[RNG, A]) {
+    outer =>
+
     // 8.6
     def flatMap0[B](f: A => Gen[B]): Gen[B] = Gen {
       State[RNG, B] {
@@ -138,6 +155,12 @@ object Chapter8 {
     def listOfN(size: Gen[Int], g: Gen[A]): Gen[List[A]] = {
       size.flatMap(n => Gen.sequence(List.fill(n)(g)))
     }
+
+    // 8.10 Implement helper functions for converting Gen to SGen. You can add this as a method on Gen.
+//    def unsized: SGen[A] = new SGen[A] {
+//       def forSize[AA >: A](i: Int): Gen[AA] = outer
+//    }
+
 
   }
 
@@ -220,6 +243,7 @@ object Chapter8 {
           }
       }, s"($label || ${p.label})")
     }
+
 
   }
 
