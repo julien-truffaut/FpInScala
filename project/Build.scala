@@ -3,7 +3,7 @@ import Keys._
 
 
 object BuildSettings {
-  val buildScalaVersion = "2.11.4"
+  val buildScalaVersion = "2.11.6"
 
   val buildSettings = Seq(
     organization       := "com.github.julien-truffaut",

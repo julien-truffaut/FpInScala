@@ -154,7 +154,9 @@ object Chapter8 {
       def isFalsified = false
     }
 
-    case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
+    case class Falsified(failure: FailedCase,
+                         successes: SuccessCount,
+                         path: String) extends Result {
       def isFalsified = true
     }
 
@@ -162,9 +164,9 @@ object Chapter8 {
       def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
         (n, rng) => randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
           case (a, i) => try {
-            if (f(a)) Passed else Falsified(a.toString, i)
+            if (f(a)) Passed else Falsified(a.toString, i, "")
           } catch {
-            case e: Exception => Falsified(buildMsg(a, e), i)
+            case e: Exception => Falsified(buildMsg(a, e), i, "")
           }
         }.find(_.isFalsified).getOrElse(Passed)
       }
@@ -188,26 +190,35 @@ object Chapter8 {
     }
 
     case class Prop(run: (TestCases, RNG) => Result,
-                    label: String = "") {
+                    label: String = "**") {
       def &&(p: Prop): Prop = Prop({
         case (testCases, rng) =>
           run(testCases, rng) match {
-            case Passed                          =>
-              p.run(testCases, rng)
-            case f@Falsified(failure, successes) =>
-              f
+            case Passed                                =>
+              p.run(testCases, rng) match {
+                case Passed                  => Passed
+                case f@Falsified(_, _, path) =>
+                  f.copy(path = s"$label [<-passed] && ${p.label} [<-failed]")
+              }
+            case f@Falsified(failure, successes, path) =>
+              f.copy(path = s"$label [<-failed] && ${p.label} [<-???]")
           }
-      }, "&&")
+      }, s"($label && ${p.label})")
 
-      def ||(p: Prop): Prop = Prop {
+      def ||(p: Prop): Prop = Prop({
         case (testCases, rng) =>
           run(testCases, rng) match {
-            case Passed                        =>
+            case Passed                              =>
               Passed
-            case Falsified(failure, successes) =>
-              p.run(testCases, rng)
+            case Falsified(failure, successes, path) =>
+              p.run(testCases, rng) match {
+                case Passed                  =>
+                  Passed
+                case f@Falsified(_, _, path) =>
+                  f.copy(path = s"$path [<-failed] || ${p.label} [<-failed]")
+              }
           }
-      }
+      }, s"($label || ${p.label})")
     }
 
   }
@@ -217,10 +228,10 @@ object Chapter8 {
 
     import `8.9`._
     def report(result: Result) = result match {
-      case Passed                        =>
+      case Passed                              =>
         println("ok.")
-      case Falsified(failure, successes) =>
-        println(s"ko: found counter example <$failure> (after $successes successes).")
+      case Falsified(failure, successes, path) =>
+        println(s"ko: found counter example <$failure> (after $successes successes): $path.")
     }
 
     report(Prop.forAll(Gen.choose(0, 10)) {
@@ -229,11 +240,20 @@ object Chapter8 {
         b < 8
     }.run(10, SimpleRNG(42)))
 
+    println("*" * 40)
+
     report((Prop.forAll(Gen.choose(0, 10)) {
       b => b < 8
     } && Prop.forAll(Gen.choose(0, 10)) {
       b => b > 1
     }).run(10, SimpleRNG(42)))
 
+    println("*" * 40)
+
+    report((Prop.forAll(Gen.choose(0, 10)) {
+      b => b < 11
+    } && Prop.forAll(Gen.choose(0, 10)) {
+      b => b > 1
+    }).run(10, SimpleRNG(42)))
   }
 }
