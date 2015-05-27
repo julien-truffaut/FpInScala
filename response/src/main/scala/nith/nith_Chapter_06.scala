@@ -118,13 +118,11 @@ object Ch06 {
 
   final def intsSequence(count: Int): Rand[List[Int]] = sequence[Int](List.fill[Rand[Int]](count)(intRand))
 
-  final def nonNegativeLessThan(n: Int): Rand[Int] = {
-    rng => val (i, rng2) = nonNegativeInt(rng)
+  final def nonNegativeLessThan(n: Int): Rand[Int] =  if (n<1) unit[Int](0) else rng => { val (i, rng2) = nonNegativeInt(rng)
       val mod = i % n
       if (i + (n - 1) - mod >= 0)
         (mod, rng2)
-      else nonNegativeLessThan(n)(rng)
-  }
+      else nonNegativeLessThan(n)(rng)}
 
   // 6.8 Implement flatMap, and then use it to implement nonNegativeLessThan.
   final def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] = rng => {
@@ -138,8 +136,8 @@ object Ch06 {
     ((a, b), rng3)
   }
 
-  final def nonNegativeLessThanFlatMap(n: Int): Rand[Int]
-  = flatMap[Int, Int](nonNegativeInt)(i => {
+  final def nonNegativeLessThanFlatMap(n: Int): Rand[Int] = if (n<1) unit[Int](0)
+  else flatMap[Int, Int](nonNegativeInt)(i => {
     val mod = i % n
     if (i + (n - 1) - mod >= 0) rng => (mod, rng) else rng => nonNegativeLessThanFlatMap(n)(rng)
   })
@@ -217,7 +215,6 @@ object Ch06 {
       this.flatMap[C](g)
     }
 
-    // I know that this is inefficient but it is beautiful.
     final def map[B](f: A => B): State[S, B] = map2[A, B](this)((a1, a2) => f(a1))
 
   }
@@ -231,8 +228,8 @@ object Ch06 {
 
   final def doubleRandState: RandState[Double] = State[Ch06.RNG, Double](doubleMap)
 
-  final def nonNegativeLessThanState(n: Int): RandState[Int]
-  = nonNegativeIntRandState.flatMap[Int](i => {
+  final def nonNegativeLessThanState(n: Int): RandState[Int] = if (n<1) unitState[RNG, Int](0)
+  else nonNegativeIntRandState.flatMap[Int](i => {
     val mod = i % n
     if (i + (n - 1) - mod >= 0) State[Ch06.RNG, Int](rng => (mod, rng))
     else this.nonNegativeLessThanState(n)

@@ -87,8 +87,11 @@ object Ch05 {
 
     @tailrec
     final def find(p: A => Boolean): Option[A] = this match {
-      case Cons(h, t) if p(h()) => Some(h())
-      case Cons(h, t) if !p(h()) => t().find(p)
+      case Cons(h, t) => {
+        // We want to avoid the double calculation of h()
+        val headValue : A = h()
+        if (p(headValue)) Some(headValue) else t().find(p)
+      }
       case _ => None
     }
 
@@ -554,9 +557,9 @@ object nith_Chapter_05 extends App {
   log("Stream(\"a\",\"bc\",\"def\").scanLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("a", "bc", "def").scanLeft[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanLeft[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
-  log("ones.scanLeft[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = " + ones.scanLeft[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
-  log("identityStream.scanLeft[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
-  log("identityStream.scanLeft[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) != p)((true, 1)).take(10).myString)
+  log("ones.scanLeft[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = " + ones.scanLeft[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
+  log("identityStream.scanLeft[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
+  log("identityStream.scanLeft[Int,Boolean]( n => order => (n % 7 < 6) != order)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) != p)((true, 1)).take(10).myString)
 
   println("\n** scanLeft2 ")
   log("Empty.scanLeft2 = " + Ch05.Stream.empty[Int].scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
@@ -569,9 +572,9 @@ object nith_Chapter_05 extends App {
   log("Stream(\"a\",\"bc\",\"def\").scanLeft2[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("a", "bc", "def").scanLeft2[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanLeft2[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft2[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
-  log("ones.scanLeft2[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = " + ones.scanLeft2[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
-  log("identityStream.scanLeft2[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
-  log("identityStream.scanLeft2[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) != p)((true, 1)).take(10).myString)
+  log("ones.scanLeft2[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = " + ones.scanLeft2[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
+  log("identityStream.scanLeft2[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
+  log("identityStream.scanLeft2[Int,Boolean]( n => order => (n % 7 < 6) != order)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) != p)((true, 1)).take(10).myString)
 
   println("\n** scanRightReverse ")
   log("Empty.scanRightReverse = " + Ch05.Stream.empty[Int].scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
@@ -584,9 +587,9 @@ object nith_Chapter_05 extends App {
   log("Stream(\"a\",\"bc\",\"def\").scanRightReverse[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("a", "bc", "def").scanRightReverse[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanRightReverse[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
-  log("ones.scanRightReverse[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
-  log("identityStream.scanRightReverse[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
-  log("identityStream.scanRightReverse[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = *** INFINITE LOOP ***")
+  log("ones.scanRightReverse[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
+  log("identityStream.scanRightReverse[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
+  log("identityStream.scanRightReverse[Int,Boolean]( n => order => (n % 7 < 6) != order)((true,1)).take(10) = *** INFINITE LOOP ***")
 
   println("\n** scanRightUnfoldLeft ")
   log("Empty.scanRightUnfoldLeft = " + Ch05.Stream.empty[Int].scanRightUnfoldReverse[Int, Int](n => m => n + m)((0, 0)).myString)
@@ -599,9 +602,9 @@ object nith_Chapter_05 extends App {
   log("Stream(\"a\",\"bc\",\"def\").scanRightUnfoldLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("a", "bc", "def").scanRightUnfoldReverse[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanRightUnfoldLeft[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
-  log("ones.scanRightUnfoldLeft[Int,Boolean]( n => p => (n % 2 == 1) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
-  log("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => p => (n % 7 < 6) && p)((true,1)).take(10) = *** INFINITE LOOP ***")
-  log("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => p => (n % 7 < 6) != p)((true,1)).take(10) = *** INFINITE LOOP ***")
+  log("ones.scanRightUnfoldLeft[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
+  log("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
+  log("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => order => (n % 7 < 6) != order)((true,1)).take(10) = *** INFINITE LOOP ***")
 
   println("\n**** Additional Experiments: the fun starts ****")
 
@@ -636,6 +639,11 @@ object nith_Chapter_05 extends App {
     + fiveStream.streamCons(Ch05.Stream(tenStream.drop(2), oneStream, fiveStream.drop(1), oneStream, fiveStream, tenStream)).myString)
   log("identityStream.streamConsFoldRight(streamOfInfiniteStreams) = "
     + identityStream.streamCons(streamOfInfiniteStreams))
+
+  println("\n** streamAppend **")
+  log("identityStream.find = "+ identityStream.find(n => {log("...testing "+n+"==5")
+    n==5
+  }))
 
   println("\n***** Done ***** ")
 
