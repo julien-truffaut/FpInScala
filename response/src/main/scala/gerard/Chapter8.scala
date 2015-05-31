@@ -1,26 +1,28 @@
 package gerard
 
 import gerard.Chapter6._
-import gerard.Chapter8.`8.9`.{Falsified, Passed, Prop}
 
 object Chapter8 {
 
-  /*
-  The library developed in this chapter goes through several iterations. This file is just the
-  shell, which you can fill in and modify while working through the chapter.
-  */
+  object first {
 
-  trait Prop {
-    outer =>
+    /*
+    The library developed in this chapter goes through several iterations. This file is just the
+    shell, which you can fill in and modify while working through the chapter.
+    */
+    trait Prop {
+      outer =>
 
-    def check: Boolean
+      def check: Boolean
 
-    // 8.3
-    def &&(p: Prop): Prop = new Prop {
-      def check: Boolean = {
-        outer.check && p.check
+      // 8.3
+      def &&(p: Prop): Prop = new Prop {
+        def check: Boolean = {
+          outer.check && p.check
+        }
       }
     }
+
   }
 
   // 8.1 write some properties for sum: List[Int] => Int
@@ -117,23 +119,18 @@ object Chapter8 {
   }
 
   // 8.11 Define some convenience functions on SGen that simply delegate to the corresponding functions on Gen.
-    trait SGen[+A] {
-      def forSize[AA >: A](i: Int): Gen[AA]
+  case class SGen[A](forSize: Int => Gen[A]) {
+    def map[B](f: A => B): SGen[B] = SGen[B] {
+      size: Int => forSize(size).map(f)
     }
 
-//  case class SGen[+A](forSize: Int => Gen[A]) {
-
-    //    def map[B](f: A => B): SGen[B] = SGen[B] {
-    //      size: Int => forSize(size).map(f)
-    //    }
-//    def map[B, AA >: A](f: AA => B): SGen[B] = SGen[B] {
-//      size: Int => forSize(size).map(f)
-//    }
-//  }
+    def flatMap[B](f: A => SGen[B]): SGen[B] = SGen[B] {
+      size: Int =>
+        forSize(size).flatMap(a => f(a).forSize(size))
+    }
+  }
 
   case class Gen[A](sample: State[RNG, A]) {
-    outer =>
-
     // 8.6
     def flatMap0[B](f: A => Gen[B]): Gen[B] = Gen {
       State[RNG, B] {
@@ -157,11 +154,17 @@ object Chapter8 {
     }
 
     // 8.10 Implement helper functions for converting Gen to SGen. You can add this as a method on Gen.
-//    def unsized: SGen[A] = new SGen[A] {
-//       def forSize[AA >: A](i: Int): Gen[AA] = outer
-//    }
+    def unsized: SGen[A] = SGen(_ => this)
 
+  }
 
+  object SGen {
+    // 8.12
+    // Implement a listOf combinator that doesn’t accept an explicit size. It should return an
+    // SGen instead of a Gen. The implementation should generate lists of the requested size
+    def listOf[A](g: Gen[A]): SGen[List[A]] = SGen {
+      size: Int => Gen.listOfN(size, g)
+    }
   }
 
   object `8.9` {
@@ -244,40 +247,165 @@ object Chapter8 {
       }, s"($label || ${p.label})")
     }
 
+  }
+
+  // Generating test cases up to a given maximum size
+  object `8.4` {
+    type MaxSize = Int
+    type FailedCase = String
+    type SuccessCount = Int
+    type TestCases = Int
+
+    sealed trait Result {
+      def isFalsified: Boolean
+    }
+
+    case object Passed extends Result {
+      def isFalsified = false
+    }
+
+    case class Falsified(failure: FailedCase,
+                         successes: SuccessCount,
+                         path: String) extends Result {
+      def isFalsified = true
+    }
+
+    case class Prop(run: (MaxSize, TestCases, RNG) => Result,
+                    label: String = "**") {
+      def &&(p: Prop): Prop = Prop({
+        case (maxSize, testCases, rng) =>
+          run(maxSize, testCases, rng) match {
+            case Passed                                =>
+              p.run(maxSize, testCases, rng) match {
+                case Passed                  => Passed
+                case f@Falsified(_, _, path) =>
+                  f.copy(path = s"$label [<-passed] && ${p.label} [<-failed]")
+              }
+            case f@Falsified(failure, successes, path) =>
+              f.copy(path = s"$label [<-failed] && ${p.label} [<-???]")
+          }
+      }, s"($label && ${p.label})")
+
+      def ||(p: Prop): Prop = Prop({
+        case (maxSize, testCases, rng) =>
+          run(maxSize, testCases, rng) match {
+            case Passed                              =>
+              Passed
+            case Falsified(failure, successes, path) =>
+              p.run(maxSize, testCases, rng) match {
+                case Passed                  =>
+                  Passed
+                case f@Falsified(_, _, path) =>
+                  f.copy(path = s"$path [<-failed] || ${p.label} [<-failed]")
+              }
+          }
+      }, s"($label || ${p.label})")
+    }
+
+    import Stream._
+
+    def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+      f(z) match {
+        case Some((a, s)) => cons(a, unfold(s)(f))
+        case None         => Empty
+      }
+    }
+
+    def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] =
+      unfold(rng)(rng => Some(g.sample.run(rng)))
+
+    def buildMsg[A](s: A, e: Exception): String =
+      s"test case: $s\n" +
+        s"generated an exception: ${e.getMessage}\n" +
+        s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+
+
+    def forAll[A](g: SGen[A])(f: A => Boolean): Prop =
+      forAll(g.forSize)(f)
+
+    def forAll[A](g: Int => Gen[A])(f: A => Boolean): Prop = Prop {
+      (max, n, rng) =>
+        val casesPerSize = (n + (max - 1)) / max
+        val props: Stream[Prop] =
+          Stream.from(0).take((n min max) + 1).map {
+            i => forAll(g(i))(f)
+          }
+        val prop: Prop =
+          props.map(p => Prop { (max, _, rng) =>
+            p.run(max, casesPerSize, rng)
+          }).toList.reduce(_ && _)
+        prop.run(max, n, rng)
+    }
+
+    def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
+      (n, casesPerSize, rng) => randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
+        case (a, i) => try {
+          if (f(a)) Passed else Falsified(a.toString, i, "")
+        } catch {
+          case e: Exception => Falsified(buildMsg(a, e), i, "")
+        }
+      }.find(_.isFalsified).getOrElse(Passed)
+    }
 
   }
 
   def main(args: Array[String]) {
-    // tests
+    if(false) {
+      import `8.9`._
 
-    import `8.9`._
-    def report(result: Result) = result match {
-      case Passed                              =>
-        println("ok.")
-      case Falsified(failure, successes, path) =>
-        println(s"ko: found counter example <$failure> (after $successes successes): $path.")
+      def report(result: Result) = result match {
+        case Passed                              =>
+          println("ok.")
+        case Falsified(failure, successes, path) =>
+          println(s"ko: found counter example <$failure> (after $successes successes): $path.")
+      }
+
+      report(Prop.forAll(Gen.choose(0, 10)) {
+        b =>
+          println(b)
+          b < 8
+      }.run(10, SimpleRNG(42)))
+
+      println("*" * 40)
+
+      report((Prop.forAll(Gen.choose(0, 10)) {
+        b => b < 8
+      } && Prop.forAll(Gen.choose(0, 10)) {
+        b => b > 1
+      }).run(10, SimpleRNG(42)))
+
+      println("*" * 40)
+
+      report((Prop.forAll(Gen.choose(0, 10)) {
+        b => b < 11
+      } && Prop.forAll(Gen.choose(0, 10)) {
+        b => b > 1
+      }).run(10, SimpleRNG(42)))
     }
 
-    report(Prop.forAll(Gen.choose(0, 10)) {
-      b =>
-        println(b)
-        b < 8
-    }.run(10, SimpleRNG(42)))
+    {
+      import SGen._
+      import `8.4`.{TestCases, forAll, Falsified, Passed, Prop}
+      import Chapter6._
 
-    println("*" * 40)
+      def run(p: Prop,
+              maxSize: Int = 100,
+              testCases: Int = 100,
+              rng: RNG = SimpleRNG(System.currentTimeMillis)): Unit =
+        p.run(maxSize, testCases, rng) match {
+          case Falsified(msg, n, _) =>
+            println(s"! Falsified after $n passed tests:\n $msg")
+          case Passed               =>
+            println(s"+ OK, passed $testCases tests.")
+        }
 
-    report((Prop.forAll(Gen.choose(0, 10)) {
-      b => b < 8
-    } && Prop.forAll(Gen.choose(0, 10)) {
-      b => b > 1
-    }).run(10, SimpleRNG(42)))
-
-    println("*" * 40)
-
-    report((Prop.forAll(Gen.choose(0, 10)) {
-      b => b < 11
-    } && Prop.forAll(Gen.choose(0, 10)) {
-      b => b > 1
-    }).run(10, SimpleRNG(42)))
+      val smallInt = Gen.choose(-10, 10)
+      val of: SGen[List[TestCases]] = listOf(smallInt)
+      val maxProp = forAll(of) { ns =>
+        val max = ns.max
+        !ns.exists(_ > max)
+      }
+      run(maxProp)
+    }
   }
 }
