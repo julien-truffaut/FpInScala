@@ -2,6 +2,8 @@ package gerard
 
 import gerard.Chapter6._
 
+import scala.collection.immutable
+
 object Chapter8 {
 
   object first {
@@ -164,6 +166,13 @@ object Chapter8 {
     // SGen instead of a Gen. The implementation should generate lists of the requested size
     def listOf[A](g: Gen[A]): SGen[List[A]] = SGen {
       size: Int => Gen.listOfN(size, g)
+    }
+
+    // 8.13
+    // Define listOf1 for generating nonempty lists, and then update your specification of
+    // max to use this generator.
+    def listOf1[A](g: Gen[A]): SGen[List[A]] = SGen {
+      size: Int => Gen.listOfN(size + 1, g)
     }
   }
 
@@ -350,7 +359,7 @@ object Chapter8 {
   }
 
   def main(args: Array[String]) {
-    if(false) {
+    if (false) {
       import `8.9`._
 
       def report(result: Result) = result match {
@@ -400,12 +409,20 @@ object Chapter8 {
         }
 
       val smallInt = Gen.choose(-10, 10)
-      val of: SGen[List[TestCases]] = listOf(smallInt)
-      val maxProp = forAll(of) { ns =>
+      val maxProp = forAll(listOf1(smallInt)) { ns =>
         val max = ns.max
         !ns.exists(_ > max)
       }
       run(maxProp)
+
+      // 8.13
+      // Write a property to verify the behavior of List.sorted
+      val sortedProp = forAll(listOf(smallInt)) { ns =>
+        val sorted: Array[Int] = ns.toArray
+        java.util.Arrays.sort(sorted)
+        ns.sorted == List(sorted: _*)
+      }
+      run(sortedProp)
     }
   }
 }
