@@ -1,5 +1,8 @@
 package julien
 
+import julien.Ch6.{RNG, SimpleRNG}
+import julien.Ch8.Phase2
+
 object Ch8 {
 
   // 8.1 To get used to thinking about testing in this way, come up with properties that specify the implementation
@@ -60,7 +63,7 @@ object Ch8 {
     // Either a b = Left a | Right b
 
     trait Prop {
-      def check: Either[(FailedCase, SuccessCount), SuccessCount]
+      def check(minSuccessful: Int, rng: RNG): Either[(FailedCase, SuccessCount), SuccessCount]
     }
 
     case class Gen[A](sample: State[RNG,A]) {
@@ -71,7 +74,15 @@ object Ch8 {
 
 
 
-    def forAll[A](a: Gen[A])(f: A => Boolean): Prop = ???
+    def forAll[A](a: Gen[A])(f: A => Boolean): Prop = new Prop {
+      def check(minSuccessful: SuccessCount, rng: RNG): Either[(FailedCase, SuccessCount), SuccessCount] = {
+        val as = listOfN(minSuccessful, a).sample.run(rng)._1
+        as.dropWhile(f) match {
+          case Nil    => Right(minSuccessful)
+          case x :: xs => Left(x.toString -> (minSuccessful - xs.size - 1))
+        }
+      }
+    }
 
     // 8.4 Implement Gen.choose using this representation of Gen. It should generate integers in the range
     // start to stopExclusive. Feel free to use functions you’ve already written.
@@ -117,11 +128,51 @@ object Ch8 {
 
     // 8.7 Implement union, for combining two generators of the same type into one,
     // by pulling values from each generator with equal likelihood.
-    def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] = ???
+    def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] =
+      boolean.flatMap(if(_) g1 else g2)
+
+    def int: Gen[Int] = Gen(State(_.nextInt))
+    def nonNegativeInt: Gen[Int] =
+      int.flatMap(i => if(i == Int.MinValue) nonNegativeInt else unit(i.abs))
+
+    def double: Gen[Double] = nonNegativeInt.map(i => (i.toDouble / Int.MinValue).abs)
 
     // 8.8 Implement weighted, a version of union that accepts a weight for each Gen and generates values
     // from each Gen with probability proportional to its weight.
-    def weighted[A](g1: (Gen[A],Double), g2: (Gen[A],Double)): Gen[A] = ???
+    def weighted[A](g1: (Gen[A],Double), g2: (Gen[A],Double)): Gen[A] =
+      double.flatMap { p =>
+        val threshold = g1._2 / (g1._2 + g2._2)
+        if (p > threshold) g2._1 else g1._1
+      }
+
+  }
+
+  object Phase3 {
+    type FailedCase = String
+    type SuccessCount = Int
+    type TestCases = Int
+
+    sealed trait Result {
+      def isFalsified: Boolean
+    }
+
+    case object Passed extends Result {
+      override def isFalsified: Boolean = false
+    }
+
+    case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
+      def isFalsified = true
+    }
+
+    case class Prop(run: (TestCases,RNG) => Result){ self =>
+      def &&(other: Prop): Prop = Prop(
+        (n, rng) =>
+          self.run(n,rng) match {
+            case f: Falsified => f
+            case Passed =>  other.run(n,rng)
+        }
+      )
+    }
 
   }
 
@@ -130,7 +181,11 @@ object Ch8 {
 object Ch8App extends App {
   import Ch8.Phase2._
 
+  val rng = SimpleRNG(1000)
+
   val four: Gen[Int] = unit(4)
   val five: Gen[Int] = unit(5)
+
+  print(Phase2.forAll(nonNegativeInt){i => println(i); i > 0}.check(100, rng))
 
 }
