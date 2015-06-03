@@ -14,7 +14,7 @@ object Ch07 {
 
     def get[A](a: Par[A]): A = ???
 
-    // 7.1 Par.map2 is a new higher-order function for combining the result of two parallel computations.
+    // 7.1 Par.map2 is aPar new higher-order function for combining the result of two parallel computations.
     // What is its signature? Give the most general signature possible (don’t assume it works only for Int).
   }
 
@@ -63,9 +63,9 @@ object Ch07 {
           UnitFuture(f(af.get, bf.get))
         }
 
-      def fork[A](a: => Par[A]): Par[A] =
+      def fork[A](aPar: => Par[A]): Par[A] =
         es => es.submit(new Callable[A] {
-          def call = a(es).get
+          def call = aPar(es).get
         })
 
       // 7.3 Hard: Fix the implementation of map2 so that it respects the contract of timeouts on Future.
@@ -73,7 +73,7 @@ object Ch07 {
       /**
        * This is the implementation from the official solution.
        * I did not understand the exercise, actually the whole template
-       * It does not suffice to fix map2, the official solution introduces a new class and so on
+       * It does not suffice to fix map2, the official solution introduces aPar new class and so on
        * Moreover some stuff from the standard Java library needs to be imported.
        * How shall one know this ? I thought the book does not require any prior experience with
        * Scala as it is written on page xviii but that seems to be utterly wrong.
@@ -116,8 +116,8 @@ object Ch07 {
         }
 
 
-      // 7.4 This API already enables a rich set of operations. Here’s a simple example: using lazyUnit,
-      // write a function to convert any function A => B to one that evaluates its result asynchronously.
+      // 7.4 This API already enables aPar rich set of operations. Here’s aPar simple example: using lazyUnit,
+      // write aPar function to convert any function A => B to one that evaluates its result asynchronously.
 
       def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
 
@@ -159,7 +159,7 @@ object Ch07 {
         sequenceBal(fbs)
       }
 
-      // Two functions to filter a list with a little sleep
+      // Two functions to filter aPar list with aPar little sleep
       def dormi(ms: Int): Unit = {
         log("...dormi: I am sleeping for " + ms + "ms !")
         Thread.sleep(ms)
@@ -172,7 +172,7 @@ object Ch07 {
         List.reverse(List.foldLeft[A, List[A]](as, List.Nil)(a => l => if (f(a)) List.Cons(a, l) else l))
       }
 
-      // 7.6 Implement parFilter, which filters elements of a list in parallel.
+      // 7.6 Implement parFilter, which filters elements of aPar list in parallel.
       def parFilterSequential[A](as: List[A])(f: A => Boolean): Par[List[A]] = unit(List.filter(as)(f))
 
       def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = {
@@ -194,18 +194,25 @@ object Ch07 {
         }
       }
 
-      def sumIntList(ints: List[Int]) = parBinOp[Int](ints)(0)(_ + _)
 
-      def prodIntList(ints: List[Int]) = parBinOp[Int](ints)(1)(_ * _)
+      final def sumIntList(ints: List[Int]): Par[Int] = parBinOp[Int](ints)(0)(_ + _)
 
-      def maxIntList(ints: List[Int]) = parBinOp[Int](ints)(Int.MinValue)(_.max(_))
+      final def sumBigIntList(bigInts: List[BigInt]): Par[BigInt] = parBinOp[BigInt](bigInts)(0)(_ + _)
+
+      final def prodIntList(ints: List[Int]): Par[Int] = parBinOp[Int](ints)(1)(_ * _)
+
+      final def prodBigIntList(bigInts: List[BigInt]): Par[BigInt] = parBinOp[BigInt](bigInts)(1)(_ * _)
+
+      final def maxIntList(ints: List[Int]): Par[Int] = parBinOp[Int](ints)(Int.MinValue)(_.max(_))
 
       // 7.11 Implement choiceN and then choice in terms of choiceN.
       def choiceN[A](n: Par[Int])(choices: List.Cons[Par[A]]): Par[A] = es => List.head(List.dropMod(choices)(n(es).get))(es)
 
-      def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = choiceN(map[Boolean, Int](cond)(if (_) 1 else 0))(List.Cons(f,List.Cons(t,List.Nil)))
+      def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = choiceN(map[Boolean, Int](cond)(if (_) 1 else 0))(List.Cons(f, List.Cons(t, List.Nil)))
 
       def sumProdMaxIntList(ints: List[Int])(selector: Int): Par[Int] = choiceN(lazyUnit(selector))(List.Cons(sumIntList(ints), List(prodIntList(ints), maxIntList(ints))))
+
+      def sumProdBigIntList(bigints: List[BigInt])(selector: Int): Par[BigInt] = choiceN(lazyUnit(selector))(List.Cons(sumBigIntList(bigints), List(prodBigIntList(bigints))))
 
       // 7.13 Implement this new primitive chooser, and then use it to implement choice and choiceN.
       def chooser[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] = es => choices(pa(es).get)(es)
@@ -237,9 +244,11 @@ object Ch07 {
         }
       }
 
-      def mergeSortPar(ints: List[Int]): Par[List[Int]] = mergeSortPar[Int](ints)(i => j => i<j)
+      def mergeSortPar(ints: List[Int]): Par[List[Int]] = mergeSortPar[Int](ints)(i => j => i < j)
 
-      }
+      def equal[A](p: Par[A])(p2: Par[A]): Par[Boolean] = Par.map2(p, p2)(_ == _)
+
+    }
 
   }
 
@@ -250,6 +259,7 @@ object Ch07 {
 
 object nith_Chapter_07 extends App {
 
+  import util._
   import Ch07.Phase3.Par._
 
   lazy val intSign: (Boolean, Int) => Int = (p, n) => if (p) n else 0 - n
@@ -278,23 +288,6 @@ object nith_Chapter_07 extends App {
       t
     }
   })
-  val esUnlimited: ExecutorService = Executors.newCachedThreadPool(new ThreadFactory {
-    val counter = new AtomicInteger(0)
-
-    def newThread(r: Runnable): Thread = {
-      val t = new Thread(r, s"PAR-thread-${counter.getAndIncrement}")
-      t.setDaemon(true)
-      t
-    }
-  })
-  val shutExecService: ExecutorService => Unit = execService => {
-    log("Shutting down now executor service\n" + execService.toString)
-    log(execService.shutdown())
-    log(execService.shutdownNow())
-    if (!execService.awaitTermination(8, TimeUnit.SECONDS))
-      logException(new Exception)("Executor Service did not terminate \n" + execService.toString)
-    else log("Executor terminated.\n" + execService.toString)
-  }
 
   // Lists
   val intList: Int => Int => List[Int] = start => card => if (card < 1) List.Nil else List.Cons(start, intList(start + 1)(card - 1))
@@ -312,7 +305,7 @@ object nith_Chapter_07 extends App {
   lazy val twoPar: Ch07.Phase3.Par[Int] = unit(2)
   lazy val threePar: Ch07.Phase3.Par[Int] = unit(3)
   lazy val infinitePar: Ch07.Phase3.Par[Boolean] = execService => execService.submit[Boolean](nonTerminatingCall)
-/*
+
   println("****** Chapter_07 ******")
   println("Long.MaxValue     = %s".format(Long.MaxValue))
   println("intList(4)(8)     = " + List.myString(intList(4)(8)))
@@ -340,7 +333,7 @@ object nith_Chapter_07 extends App {
   println("\n** Exercise 7.5 **")
   log("sequence(List.Nil)(es2).get = " + sequence(List.Nil)(es2).get)
   log("sequence(List(twoPar,threePar))(es2).get = " + List.myString(sequence(List(twoPar, threePar))(es2).get) + "\n")
-  log("* Let us fork 8 threads using parMap but our executor service has a pool of " + numThreads + " threads only *")
+  log("* Let us fork 8 threads using parMap but our executor service has aPar pool of " + numThreads + " threads only *")
   log("Executor Service es2=" + es2 + "\n")
   log("parMap(intListList(4)(8))(filterForEven)(es2).get=" + List.myString(parMap[List[Int], List[Int]](intListList(4)(8))(filterForEven)(es2).get) + "\n")
 
@@ -349,7 +342,6 @@ object nith_Chapter_07 extends App {
   log("* Let us fork 8 threads using parMapBal and the unlimited executor Executors.newCachedThreadPool *")
   log("Executor Service esUnlimited=" + esUnlimited + "\n")
   log("parMapBal(intListList(4)(8))(filterForEven)(esUnlimited).get=" + List.myString(parMapBal[List[Int], List[Int]](intListList(4)(8))(filterForEven)(esUnlimited).get))
-
   println("\n** Exercise 7.6 **")
   log("parFilterSequential(List(0,1,2,3,4,5,6,7,8,9))(_%2==0)(es2).get) = " + List.myString(parFilterSequential(List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))(_ % 2 == 0)(es2).get))
   log("parFilter(List(0,1,2,3,4,5,6,7,8,9))(n=>n%2==0)(es2).get         = " + List.myString(parFilter(List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))(n => n % 2 == 0)(es2).get))
@@ -359,47 +351,47 @@ object nith_Chapter_07 extends App {
   log("prodIntList(List())(esUnlimited).get                             = " + prodIntList(List())(esUnlimited).get)
   log("prodIntList(List(42))(esUnlimited).get                           = " + prodIntList(List(42))(esUnlimited).get)
   log("prodIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get         = " + prodIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(esUnlimited).get)
+  println("* The following result is false:")
+  logg("prodIntList(List(-2147483648,-150241704))(esUnlimited).get")(prodIntList(List(-2147483648, -150241704))(esUnlimited).get)
+  logg("because of some overflow: (-2147483648)*(-150241704)")((-2147483648) * (-150241704))
+  logg("but as BigInt: prodBigIntList(List(-2147483648,-150241704))(esUnlimited).get")(prodBigIntList(List(-2147483648, -150241704))(esUnlimited).get)
   log("maxIntList(List())(esUnlimited).get                              = " + maxIntList(List())(esUnlimited).get)
   log("maxIntList(List(42))(esUnlimited).get                            = " + maxIntList(List(42))(esUnlimited).get)
   log("maxIntList(List(1,2,3,4,5,6,7,8,9,10))(esUnlimited).get          = " + maxIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(esUnlimited).get)
   Thread.sleep(100)
-  */
+
+
   println("\n** Exercise 7.11 **")
   log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(0)(esUnlimited).get = " + sumProdMaxIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(0)(esUnlimited).get)
   log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(1)(esUnlimited).get = " + sumProdMaxIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(1)(esUnlimited).get)
   log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(2)(esUnlimited).get = " + sumProdMaxIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(2)(esUnlimited).get)
   log("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(3)(esUnlimited).get = " + sumProdMaxIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(3)(esUnlimited).get)
-  /*
-    try {
-      log(sumProdMaxIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))(-1)(es1).get)
-    } catch {
-      case e: Exception => logException(e)("sumProdMaxIntList(List(1,2,3,4,5,6,7,8,9,10))(-1)(es1).get")
-    }
-    log("choice(unit(false))(sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + choice(unit(false))(sumIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), prodIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))(esUnlimited).get)
-    log("choice(unit(true)) (sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + choice(unit(true))(sumIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), prodIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))(esUnlimited).get)
 
-    println("\n** Exercise 7.13 **")
-    log("chooser(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + chooser(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("chooser(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + chooser(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("chooser(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + chooser(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("choice(unit(false))(sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + choice(unit(false))(sumIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), prodIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))(esUnlimited).get)
+  log("choice(unit(true)) (sumIntList(List(1,2,3,4,5,6,7,8,9,10)),prodIntList(List(1,2,3,4,5,6,7,8,9,10)))(esUnlimited).get = " + choice(unit(true))(sumIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), prodIntList(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))(esUnlimited).get)
 
-    println("\n** Exercise 7.14 **")
-    log("flatMap users \"inner\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the inner Par[A] to A")
-    log("flatMap(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("flatMap(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("flatMap(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("flatMap2 users \"outer\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the outer Par[Par[A]] to Par[A]")
-    log("flatMap2(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap2(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("flatMap2(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap2(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
-    log("flatMap2(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap2(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get + "\n")
+  println("\n** Exercise 7.13 **")
+  log("chooser(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + chooser(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("chooser(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + chooser(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("chooser(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + chooser(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
 
-    println("\n** Additional Stuff **")
-    log("mergeSortPar(List.integers(0)(99))(esUnlimited).get = " + List.myString(mergeSortPar(List.integers(0)(99))(esUnlimited).get))
-    log("mergeSortPar(List.integers(99)(0))(esUnlimited).get = " + List.myString(mergeSortPar(List.integers(99)(0))(esUnlimited).get))
-  */
-  log("********************************************************************\n")
+  println("\n** Exercise 7.14 **")
+  log("flatMap users \"inner\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the inner Par[A] to A")
+  log("flatMap(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("flatMap(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("flatMap(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("flatMap2 users \"outer\" join, i.e. to convert ppa:Par[Par[A]] to pa:Par[A] it calculates the outer Par[Par[A]] to Par[A]")
+  log("flatMap2(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap2(unit(2))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("flatMap2(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap2(unit(5))(n => sumIntList(intList(n)(n)))(esUnlimited).get)
+  log("flatMap2(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get = " + flatMap2(unit(10))(n => sumIntList(intList(n)(n)))(esUnlimited).get + "\n")
+
+  println("\n** Additional Stuff **")
+  log("mergeSortPar(List.integers(0)(99))(esUnlimited).get = " + List.myString(mergeSortPar(List.integers(0)(99))(esUnlimited).get))
+  log("mergeSortPar(List.integers(99)(0))(esUnlimited).get = " + List.myString(mergeSortPar(List.integers(99)(0))(esUnlimited).get))
+  logg("equal(unit(1 + 2))(unit(3))(esUnlimited).get")(equal(unit(1 + 2))(unit(3))(esUnlimited).get)
+  println("\n****************************************************************************************************************************************\n")
   log("*** Shutting down the executor services es1, es2 and esunlimited ***\n")
-  shutExecService(es1)
-  shutExecService(es2)
-  shutExecService(esUnlimited)
+  shutExecService(true)(es1)
+  shutExecService(true)(es2)
+  shutExecService(true)(esUnlimited)
 }

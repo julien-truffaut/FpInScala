@@ -16,22 +16,22 @@ object Ch06 {
   }
 
 
-  // 6.1 Write a function that uses RNG.nextInt to generate a random integer between 0 and
+  // 6.1 Write aPar function that uses RNG.nextInt to generate aPar random integer between 0 and
   // Int.maxValue (inclusive). Make sure to handle the corner case when nextInt returns
-  // Int.MinValue, which doesn’t have a non-negative counterpart.
+  // Int.MinValue, which doesn’t have aPar non-negative counterpart.
   final def nonNegativeInt(rng: RNG): (Int, RNG) = rng.nextInt match {
     case (x, y) => (if (x < 0) x - Int.MinValue else x, y)
   }
 
-  // 6.2 Write a function to generate a Double between 0 and 1, not including 1.
+  // 6.2 Write aPar function to generate aPar Double between 0 and 1, not including 1.
   // Note: You can use Int.MaxValue to obtain the maximum positive integer value, and you
-  // can use x.toDouble to convert an x: Int to a Double.
+  // can use x.toDouble to convert an x: Int to aPar Double.
   final def double(rng: RNG): (Double, RNG) = nonNegativeInt(rng) match {
     case (x, y) => (-x.toDouble / Int.MinValue, y)
   }
 
 
-  // 6.3 Write functions to generate an (Int, Double) pair, a (Double, Int) pair, and a
+  // 6.3 Write functions to generate an (Int, Double) pair, aPar (Double, Int) pair, and aPar
   // (Double, Double, Double) 3-tuple. You should be able to reuse the functions you’ve already written.
   // QUESTION
   // Do we require the integer to be non-negative and the double to be in [0;1[ ?
@@ -53,7 +53,7 @@ object Ch06 {
     }
   }
 
-  // 6.4 Write a function to generate a list of random integers.
+  // 6.4 Write aPar function to generate aPar list of random integers.
 
   final def ints(count: Int)(rng: RNG): (List[Int], RNG) = {
     def createNext(ir: (Int, RNG)): Option[((Int, RNG), (Int, RNG))] = ir match {
@@ -87,13 +87,13 @@ object Ch06 {
   final def nonNegativeEven: Rand[Int] = map(nonNegativeInt)(i => i - i % 2)
 
 
-  // 6.5 Use map to reimplement double in a more elegant way. See exercise 6.2.
+  // 6.5 Use map to reimplement double in aPar more elegant way. See exercise 6.2.
   final def doubleMap: Rand[Double] = map(nonNegativeInt)(x => -x.toDouble / Int.MinValue)
 
 
   // 6.6  Write the implementation of map2 based on the following signature.
-  // This function takes two actions, ra and bRand, and a function f for combining their results,
-  // and returns a new action that combines them:
+  // This function takes two actions, ra and bRand, and aPar function f for combining their results,
+  // and returns aPar new action that combines them:
   final def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
     val (a, rng2) = ra(rng)
     val (b, rng3) = rb(rng2)
@@ -107,10 +107,10 @@ object Ch06 {
   val randDoubleInt: Rand[(Double, Int)] = both(double, intRand)
 
 
-  // 6.7 Hard: If you can combine two RNG transitions, you should be able to combine a whole list of them.
-  // Implement sequence for combining a List of transitions into a single transition.
+  // 6.7 Hard: If you can combine two RNG transitions, you should be able to combine aPar whole list of them.
+  // Implement sequence for combining aPar List of transitions into aPar single transition.
   // Use it to reimplement the ints function you wrote before. For the latter, you can use the standard library
-  // function List.fill(n)(x) to make a list with x repeated n times.
+  // function List.fill(n)(x) to make aPar list with x repeated n times.
 
   //  We set sequence[A](Nil) = rng => (Nil,rng)
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]]
@@ -170,7 +170,7 @@ object Ch06 {
 
   //  EXERCISE 6.10
   //  Generalize the functions unit, map, map2, flatMap, and sequence. Add them as methods
-  //  on the State case class where possible. Otherwise you should put them in a State
+  //  on the State case class where possible. Otherwise you should put them in aPar State
   //  companion object.
 
   case class State[S, +A](run: S => (A, S)) {
@@ -200,7 +200,7 @@ object Ch06 {
       abState.flatMap[C]((ab => ab match {
         case (a, b)
         => State[S, C](state => {
-          //println("...map2: ab="+ab+"  f(a, b)="+f(a, b)+"  state="+state)
+          //println("...map2: ab="+ab+"  f(aPar, b)="+f(aPar, b)+"  state="+state)
           val ((a2, b2), state2): ((A, B), S) = abState.run(state)
           (f(a2, b2), state2)
         })
@@ -248,9 +248,9 @@ object Ch06 {
   //  6.6 Purely functional imperative programming
   //
   //  EXERCISE 6.11
-  //  Hard: To gain experience with the use of State, implement a finite state automaton
-  //  that models a simple candy dispenser. The machine has two types of input: you can
-  //  insert a coin, or you can turn the knob to dispense candy. It can be in one of two
+  //  Hard: To gain experience with the use of State, implement aPar finite state automaton
+  //  that models aPar simple candy dispenser. The machine has two types of input: you can
+  //  insert aPar coin, or you can turn the knob to dispense candy. It can be in one of two
   //  states: locked or unlocked. It also tracks how many candies are left and how many
   //  coins it contains.
   sealed trait Input
