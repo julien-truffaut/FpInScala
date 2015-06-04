@@ -136,29 +136,41 @@ object Ch05 {
     // 5.13 Use unfold to implement map, take, takeWhile, zipWith (as in chapter 3),
     // and zipAll. The zipAll function should continue the traversal as long as either
     // stream has more elements—it uses Option to indicate whether each stream has been exhausted.
-    final def mapUnfold[B](f: A => Option[B]): Stream[B]
-    = unfold[B, Stream[A]](this)(aStream => aStream match {
-      case Cons(a, aTail) => f(a()) match {
-        case Some(b) => Some(b, aTail())
+    final def mapUnfold[B](f: A => Option[B]): Stream[B] = {
+      def g(aStream : Stream[A]):Option[(B, Stream[A])] = aStream match {
+        case Cons(a, aTail) => f(a()) match {
+          case Some(b) => ??? // Some[(B,Stream[A])]((b, aTail()))
+          case _ => None
+        }
         case _ => None
       }
-      case _ => None
-    })
-
+      unfold[B, Stream[A]](this)(g)
+    }
+/*
+    final def mapUnfold[B](f: A => Option[B]): Stream[B] = {
+      unfold[B, Stream[A]](this)(aStream => aStream match {
+        case Cons(a, aTail) => f(a()) match {
+          case Some(b) => Some((b, aTail()))
+          case _ => None
+        }
+        case _ => None
+      })
+    }
+*/
     final def takeUnfold(n: Int): Stream[A] = unfold[A, (Stream[A], Int)]((this, 0))(x => x._1 match {
-      case Cons(a, as) if x._2 < n => Some(a(), (as(), 1 + x._2))
+      case Cons(a, as) if x._2 < n => Some((a(), (as(), 1 + x._2)))
       case _ => None
     })
 
     final def takeWhileUnfold(p: A => Boolean): Stream[A] = unfold[A, Stream[A]](this)(aStream => aStream match {
-      case Cons(a, aTail) if p(a()) => Some(a(), aTail())
+      case Cons(a, aTail) if p(a()) => Some((a(), aTail()))
       case _ => None
     })
 
     final def zipWith[B, C](bs: Stream[B])(f: A => B => C): Stream[C]
     = unfold[C, (Stream[A], Stream[B])]((this, bs))(x => x._1 match {
       case Cons(a, aTail) => x._2 match {
-        case Cons(b, bTail) => Some(f(a())(b()), (aTail(), bTail()))
+        case Cons(b, bTail) => Some((f(a())(b()), (aTail(), bTail())))
         case _ => None
       }
       case _ => None
@@ -167,17 +179,24 @@ object Ch05 {
     final def zip[B](bs: Stream[B]): Stream[(A,B)] = zipWith[B, (A,B)](bs)(a=>b=>(a,b))
 
     // there is some potential for improvement
-    final def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])]
-    = unfold[(Option[A], Option[B]), (Stream[A], Stream[B])]((this, s2))(x => x._1 match {
-      case Cons(a, aTail) => x._2 match {
-        case Cons(b, bTail) => Some((Some(a()), Some(b())), (aTail(), bTail()))
-        case _ => Some((Some(a()), None), (aTail(), Empty))
+    final def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = {
+      def g(ab:(Stream[A], Stream[B])) : Option[((Option[A], Option[B]), (Stream[A], Stream[B]))] = ab._1 match {
+        case Cons(a, aTail) => ab._2 match {
+          case Cons(b, bTail) => Some(((Some(a()), Some(b())), (aTail(), bTail())))
+          case _ => Some(((Some(a()), None), (aTail(), Empty)))
+        }
+        case _ => ab._2 match {
+          //        case Cons(b, bTail) => Some((None, Some(b())), (Empty, bTail()))
+          case Cons(b, bTail) => {
+            val abOpt:(Option[A], Option[B]) = (None, Some(b()))
+            val abStream:(Stream[A], Stream[B])=(Empty, bTail())
+            Some[((Option[A], Option[B]), (Stream[A], Stream[B]))]((abOpt,abStream))
+          }
+          case _ => None
+        }
       }
-      case _ => x._2 match {
-        case Cons(b, bTail) => Some((None, Some(b())), (Empty, bTail()))
-        case _ => None
-      }
-    })
+      unfold[(Option[A], Option[B]), (Stream[A], Stream[B])]((this, s2))(g)
+    }
 
     // 5.14 Hard: Implement startsWith using functions you’ve written. It should check
     // if one Stream is aPar prefix of another. For instance, Stream(1,2,3)
@@ -189,7 +208,7 @@ object Ch05 {
     // suffixes of the input sequence, starting with the original Stream. For example,
     // given Stream(1,2,3), it would return Stream(Stream(1,2,3), Stream(2,3), Stream(3), Stream()).
     final def tails: Stream[Stream[A]] = unfold[Stream[A], Stream[A]](this)(aStream => aStream match {
-      case Cons(a, aTail) => Some(aTail(), aTail())
+      case Cons(a, aTail) => Some((aTail(), aTail()))
       case Empty => None
     })
 
@@ -216,10 +235,12 @@ object Ch05 {
           //          println("... scanLeft: z="+z+"  bStream.take(20)=" + bStream.take(20).myString)
           bStream match {
             case Cons(b1, bTail1) => bTail1() match {
-              case Cons(b2, bTail2) =>
+              case Cons(b2, bTail2) => {
                 val nextResult: C = f(b2())(z)
-                Some[(C, (C, Stream[B]))](z, (nextResult, bTail1()))
-              case _ => Some[(C, (C, Stream[B]))](z, (z, Empty))
+                val cBstream:(C, Stream[B]) = (nextResult, bTail1())
+                Some[(C, (C, Stream[B]))]((z, cBstream))
+              }
+              case _ => Some[(C, (C, Stream[B]))]((z, (z, Empty)))
             }
             case _ => None
           }
@@ -237,7 +258,7 @@ object Ch05 {
           bStream match {
             case Cons(b1, bTail1) =>
               val nextResult: C = f(b1())(z)
-              Some[(C, (C, Stream[B]))](nextResult, (nextResult, bTail1()))
+              Some[(C, (C, Stream[B]))]((nextResult, (nextResult, bTail1())))
             case _ => None
           }
         }
@@ -256,8 +277,8 @@ object Ch05 {
             case Cons(b1, bTail1) => bTail1() match {
               case Cons(b2, bTail2) =>
                 val nextResult: C = f(b2())(z)
-                Some[(C, (C, Stream[B]))](z, (nextResult, bTail1()))
-              case _ => Some[(C, (C, Stream[B]))](z, (z, Empty))
+                Some[(C, (C, Stream[B]))]((z, (nextResult, bTail1())))
+              case _ => Some[(C, (C, Stream[B]))]((z, (z, Empty)))
             }
             case _ => None
           }
@@ -548,12 +569,12 @@ object nith_Chapter_05 extends App {
 
   println("\n** scanLeft ")
   log("Empty.scanLeft = " + Ch05.Stream.empty[Int].scanLeft[Int, Int](n => m => n + m)((0, 0)).myString)
-  log("Stream(1).scanLeft = " + Ch05.Stream(1).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(1,20).scanLeft[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+  log("Stream(1).scanLeft = " + Ch05.Stream(1).scanLeft[Int, Int](n => m => n + m)((0, 0)).myString)
+  log("Stream(1,20).scanLeft[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanLeft[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300).scanLeft[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300).scanLeft[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanLeft[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(\"aPar\",\"bc\",\"def\").scanLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("aPar", "bc", "def").scanLeft[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanLeft[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
@@ -563,12 +584,12 @@ object nith_Chapter_05 extends App {
 
   println("\n** scanLeft2 ")
   log("Empty.scanLeft2 = " + Ch05.Stream.empty[Int].scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
-  log("Stream(1).scanLeft2 = " + Ch05.Stream(1).scanLeft2[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(1,20).scanLeft2[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanLeft2[Int, Int](n => m => n + m)(0, 0).myString)
+  log("Stream(1).scanLeft2 = " + Ch05.Stream(1).scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
+  log("Stream(1,20).scanLeft2[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300).scanLeft2[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300).scanLeft2[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300).scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanLeft2[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft2[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft2[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(\"aPar\",\"bc\",\"def\").scanLeft2[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("aPar", "bc", "def").scanLeft2[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanLeft2[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft2[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
@@ -578,12 +599,12 @@ object nith_Chapter_05 extends App {
 
   println("\n** scanRightReverse ")
   log("Empty.scanRightReverse = " + Ch05.Stream.empty[Int].scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
-  log("Stream(1).scanRightReverse = " + Ch05.Stream(1).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(1,20).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+  log("Stream(1).scanRightReverse = " + Ch05.Stream(1).scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
+  log("Stream(1,20).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300).scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightReverse[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(\"aPar\",\"bc\",\"def\").scanRightReverse[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("aPar", "bc", "def").scanRightReverse[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanRightReverse[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
@@ -593,12 +614,12 @@ object nith_Chapter_05 extends App {
 
   println("\n** scanRightUnfoldLeft ")
   log("Empty.scanRightUnfoldLeft = " + Ch05.Stream.empty[Int].scanRightUnfoldReverse[Int, Int](n => m => n + m)((0, 0)).myString)
-  log("Stream(1).scanRightUnfoldLeft = " + Ch05.Stream(1).scanRightUnfoldReverse[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(1,20).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanRightUnfoldReverse[Int, Int](n => m => n + m)(0, 0).myString)
+  log("Stream(1).scanRightUnfoldLeft = " + Ch05.Stream(1).scanRightUnfoldReverse[Int, Int](n => m => n + m)((0, 0)).myString)
+  log("Stream(1,20).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = " + Ch05.Stream(1, 20).scanRightUnfoldReverse[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300).scanRightUnfoldReverse[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300).scanRightUnfoldReverse[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = "
-    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightUnfoldReverse[Int, Int](n => m => n + m)(0, 0).myString)
+    + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightUnfoldReverse[Int, Int](n => m => n + m)((0, 0)).myString)
   log("Stream(\"aPar\",\"bc\",\"def\").scanRightUnfoldLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
     + Ch05.Stream("aPar", "bc", "def").scanRightUnfoldReverse[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanRightUnfoldLeft[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")

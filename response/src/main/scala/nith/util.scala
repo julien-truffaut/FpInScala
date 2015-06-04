@@ -37,7 +37,7 @@ object util {
     }
     else {
       execService.shutdown()
-      execService.shutdownNow()
+      val x: java.util.List[Runnable] = execService.shutdownNow()
     }
   }
 }
