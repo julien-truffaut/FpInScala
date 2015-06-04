@@ -23,7 +23,7 @@ object List {
 
 
   //exercise 3.2
-  // Implement the function tail for removing the first element of a List. Note that the
+  // Implement the function tail for removing the first element of aPar List. Note that the
   // function takes constant time. What are different choices you could make in your
   // implementation if the List is Nil? We’ll return to this question in the next chapter.
   def head[A](l: Cons[A]): A = l match {case Cons(x, t) => x}
@@ -49,6 +49,7 @@ object List {
 
   def dropMod[A](as: Cons[A])(n: Int): Cons[A] = {
     val nModl : Int = mod(n)(List.length(as))
+//    logg("...dropMod: as="+myString(as)+"\tn="+n+"\tList.length(as)="+List.length(as)+"\tnModl")(nModl)
     as match {
       case Cons(a1, Cons(a2, aTail)) if nModl > 0 => dropMod(Cons(a2, aTail))(nModl)
       case _ => as
@@ -342,7 +343,7 @@ object Tree {
   //exercise 3.28
   def map[A, B](as: Tree[A])(h: A => B): Tree[B] = fold[A, Tree[B]](as)(a => Leaf(h(a)))(l => r => Branch(l, r))
 
-  // stringLength transforms a tree of strings into a tree containing the length of each string
+  // stringLength transforms aPar tree of strings into aPar tree containing the length of each string
   def stringLength(strings: Tree[String]): Tree[Int] = map[String, Int](strings)(s => s.length)
 }
 
@@ -398,7 +399,7 @@ object nith_Chapter_03 {
 
     val nilList: List[Double] = Nil
     val oneList: List[Int] = Cons(1, Nil)
-    val strList: List[String] = Cons("a", Cons("b", Nil))
+    val strList: List[String] = Cons("aPar", Cons("b", Nil))
     val dblList: List[Double] = List(0.1, 1.2, 2.3, 3.4, 4.5)
     val fivList: List[Int] = integers(0)(4)
     val tenList: List[Int] = integers(0)(9)
@@ -412,7 +413,7 @@ object nith_Chapter_03 {
     util.log("Int.MinValue = %s".format(Int.MinValue))
     util.log("Int.MaxValue = %s".format(Int.MaxValue))
 
-    log("****** a few lists ******")
+    log("****** aPar few lists ******")
     log("nilList=" + myString(nilList))
     log("oneList=" + myString(oneList))
     log("strList=" + myString(strList))
@@ -436,7 +437,7 @@ object nith_Chapter_03 {
     log("init(oneList)=" + init(oneList))
     log("init(strList)=" + init(strList))
     log("init(fivList)=" + init(fivList))
-    log("****** a few lists ******")
+    log("****** aPar few lists ******")
     log("nilList=" + myString(nilList))
     log("oneList=" + myString(oneList))
     log("strList=" + myString(strList))
@@ -453,7 +454,7 @@ object nith_Chapter_03 {
     log("product(tail(fivList))=" + product(tail(fivList)))
     log("productFoldRight(tenList)=" + productFoldRight(tenList))
     log("productFoldLeft(tenList)=" + productFoldLeft(tenList))
-    log("foldRight(fivList, Nil:List[Int])(a=>as=>Cons(a,as))))=" + foldRight(fivList, Nil: List[Int])(a => as => Cons(a, as)))
+    log("foldRight(fivList, Nil:List[Int])(aPar=>as=>Cons(aPar,as))))=" + foldRight(fivList, Nil: List[Int])(a => as => Cons(a, as)))
     log("length(fivList)=" + length(fivList))
     log("length(tenList)=" + length(tenList))
     log("length(hunList)=" + length(hunList))
@@ -468,7 +469,7 @@ object nith_Chapter_03 {
     log("map(fivList)(n=>n+1)=" + myString(map(fivList)(n => n + 1)))
     log("map(dblList)(toString)=" + myString(map(dblList)(d => d.toString)))
     
-    println("\n Max and Min of a list")
+    println("\n Max and Min of aPar list")
     log("min(Nil)                                                 = " + min(Nil))
     log("max(Nil)                                                 = " + max(Nil))
     log("min(hunList)                                             = " + min(hunList))
@@ -484,8 +485,8 @@ object nith_Chapter_03 {
     log("max[Int](hunListReversed)(i=>j=>true)(Int.MinValue)      = " + max[Int](hunListReversed)(i => j => true)(Int.MinValue))
     log("max[Int](List(0,1,2))(i=>j=>(i+j)%2==1)(Int.MinValue)    = " + max[Int](List(0, 1, 2))(i => j => (i + j) % 2 == 1)(Int.MinValue))
     log("max[Int](List(0,1,2,3))(i=>j=>(i+j)%2==1)(Int.MinValue)  = " + max[Int](List(0, 1, 2, 3))(i => j => (i + j) % 2 == 1)(Int.MinValue))
-    log("min(List(\"a\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + min(Cons("a",List("b","c","dd","d","az","dd"))))
-    log("max(List(\"a\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + max(Cons("a",List("b","c","dd","d","az","dd"))))
+    log("min(List(\"aPar\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + min(Cons("aPar",List("b","c","dd","d","az","dd"))))
+    log("max(List(\"aPar\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + max(Cons("aPar",List("b","c","dd","d","az","dd"))))
 
     println()
     log("flatMap(fivList)(n=>List(n+1))=" + myString(flatMap(fivList)(n => List(n + 1))))
@@ -523,8 +524,8 @@ object nith_Chapter_03 {
     log("depth(Leaf(42))=" + Tree.depth(Leaf(42)))
     log("depth(Branch(Leaf(-1),Leaf(42)))=" + Tree.depth(Branch(Leaf(-1), Leaf(42))))
     log("depth(Branch(Branch(Leaf(-1),Leaf(0)),Leaf(42)))=" + Tree.depth(Branch(Branch(Leaf(-100), Leaf(0)), Leaf(42))))
-    log("stringLength(Leaf(a))=" + Tree.stringLength(Leaf("a")))
-    log("stringLength(Branch(Leaf(a),Leaf(abc)))=" + Tree.stringLength(Branch(Leaf("a"), Leaf("abc"))))
+    log("stringLength(Leaf(aPar))=" + Tree.stringLength(Leaf("aPar")))
+    log("stringLength(Branch(Leaf(aPar),Leaf(abc)))=" + Tree.stringLength(Branch(Leaf("aPar"), Leaf("abc"))))
     log("stringLength(Branch(Branch(Leaf(abc),Leaf()),Leaf(abcd)))="
       + Tree.stringLength(Branch(Branch(Leaf("abc"), Leaf("")), Leaf("abcd"))))
     log("****** Finitary branching trees with values at all nodes: FinTree ******")
@@ -549,7 +550,7 @@ object nith_Chapter_03 {
     log("stringLength(fTree(123,List(fTree(,Nil))))=" + FinTree.stringLength(fTree("123", List(fTree("", Nil)))))
     log("stringLength(fTree(abc,List(fTree(abc,Nil))))=" + FinTree.stringLength(fTree("abc", List(fTree("abc", Nil)))))
     log("stringLength(fTree(123,List(fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("ab", Nil)))))
-    log("stringLength(fTree(123,List(fTree(a,Nil),fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("a", Nil), fTree("ab", Nil)))))
+    log("stringLength(fTree(123,List(fTree(aPar,Nil),fTree(ab,Nil)))))=" + FinTree.stringLength(fTree("123", List(fTree("aPar", Nil), fTree("ab", Nil)))))
     log("stringLength(fTree(456,List(fTree(123,List(fTree(ab,Nil),fTree(X,Nil))),fTree(abcdef,Nil))))="
       + FinTree.stringLength(fTree("456", List(fTree("123", List(fTree("ab", Nil), fTree("X", Nil))), fTree("abcdef", Nil)))))
     log("stringLength(fTree(456,List(fTree(123,List(fTree(ab,List(fTree(7,Nil))),fTree(X,Nil))),fTree(abcdef,List(fTree(7,Nil))))))="
@@ -563,7 +564,7 @@ object nith_Chapter_03 {
     log("shovel(tenList)(fivList)(3) = " + myString(shovel(tenList)(fivList)(3)))
     log("halve(tenList)              = " + myString(halve(tenList)))
     log("halve(Nil)                  = " + myString(halve(Nil)))
-    log("halve(List(\"a\"))            = " + myString(halve(List("a"))))
+    log("halve(List(\"aPar\"))            = " + myString(halve(List("aPar"))))
     log("integers(0)(0)              = " + myString(integers(0)(0)))
     log("integers(42)(0)             = " + myString(integers(42)(0)))
     log("integers(0)(42)             = " + myString(integers(0)(42)))

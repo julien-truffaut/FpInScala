@@ -5,7 +5,7 @@ import Ch04_Option.{None, Option, Some}
 object Ch05 {
 
 
-  // QUESTION: If laziness is such a great thing why are functions not by default as lazy as possible,
+  // QUESTION: If laziness is such aPar great thing why are functions not by default as lazy as possible,
   // i.e. I need to explicitly write (=> A) to make functions diligent
   sealed trait Stream[+A] {
 
@@ -30,7 +30,7 @@ object Ch05 {
     }
 
     // QUESTION: Why do we want to force the evaluation ? Laziness is cool, isn't it ?
-    // 5.1 Implement toList function that convert a Stream to a List, which will force its evaluation and let you
+    // 5.1 Implement toList function that convert aPar Stream to aPar List, which will force its evaluation and let you
     // look at it in the REPL. You can convert to the regular List type in the standard library.
     def toList: List[A] = {
       @tailrec
@@ -46,8 +46,8 @@ object Ch05 {
       case Cons(h, t) => List.Cons[A](h(), t().toList2)
     }
 
-    // 5.2 Write the function take(n) for returning the first n elements of a Stream,
-    // and drop(n) for skipping the first n elements of a Stream.
+    // 5.2 Write the function take(n) for returning the first n elements of aPar Stream,
+    // and drop(n) for skipping the first n elements of aPar Stream.
     final def take(n: Int): Stream[A] = this match {
       case Empty => Empty
       case Cons(h, t) if (n < 1) => {
@@ -67,14 +67,14 @@ object Ch05 {
     }
 
     // 5.3 Write the function takeWhile for returning all starting elements of
-    // a Stream that match the given predicate.
+    // aPar Stream that match the given predicate.
     final def takeWhile(p: A => Boolean): Stream[A] = this match {
       case Empty => Empty
       case Cons(h, t) => if (p(h())) Cons(h, () => t().takeWhile(p)) else Empty
     }
 
-    // 5.4 Implement forAll, which checks that all elements in the Stream match a given predicate.
-    // Your implementation should terminate the traversal as soon as it encounters a nonmatching value.
+    // 5.4 Implement forAll, which checks that all elements in the Stream match aPar given predicate.
+    // Your implementation should terminate the traversal as soon as it encounters aPar nonmatching value.
     final def forAll(p: A => Boolean): Boolean = !this.exists(a => !p(a))
 
 
@@ -180,12 +180,12 @@ object Ch05 {
     })
 
     // 5.14 Hard: Implement startsWith using functions you’ve written. It should check
-    // if one Stream is a prefix of another. For instance, Stream(1,2,3)
+    // if one Stream is aPar prefix of another. For instance, Stream(1,2,3)
     // startsWith Stream(1,2) would be true.
     final def startsWith[A](s: Stream[A]): Boolean = this.zipAll(s).forAll(x => (x._2 == None) || x._1 == x._2)
 
 
-    // 5.15 Implement tails using unfold. For a given Stream, tails returns the Stream of
+    // 5.15 Implement tails using unfold. For aPar given Stream, tails returns the Stream of
     // suffixes of the input sequence, starting with the original Stream. For example,
     // given Stream(1,2,3), it would return Stream(Stream(1,2,3), Stream(2,3), Stream(3), Stream()).
     final def tails: Stream[Stream[A]] = unfold[Stream[A], Stream[A]](this)(aStream => aStream match {
@@ -195,19 +195,19 @@ object Ch05 {
 
     final def hasSubsequence[B](s: Stream[B]): Boolean = tails.exists(_ startsWith s)
 
-    // 5.16 Hard: Generalize tails to the function scanRight, which is like a foldRight that returns
-    // a stream of the intermediate results. For example:
+    // 5.16 Hard: Generalize tails to the function scanRight, which is like aPar foldRight that returns
+    // aPar stream of the intermediate results. For example:
     // scala> Stream(1,2,3).scanRight(0)(_ + _).toList
     // res0: List[Int] = List(6,5,3,0)
     // This example should be equivalent to the expression List(1+2+3+0, 2+3+0, 3+0, 0).
-    // Your function should reuse intermediate results so that traversing a Stream with n elements
+    // Your function should reuse intermediate results so that traversing aPar Stream with n elements
     // always takes time linear in n. Can it be implemented using unfold? How, or why not? Could it
     // be implemented using another function we’ve written?
 
     // *** scanLeft ***
     // scanRight requires the total result to be the first element of the result stream. Therefore this cannot work on
     // an infinite stream. Good reason to implement scanLeft: the first element contains the defined neutral element for
-    // f. Unfortunately this works only if the result type is a super type of A.
+    // f. Unfortunately this works only if the result type is aPar super type of A.
 
     final def scanLeft[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = {
       lazy val initialState: (C, Stream[B]) = (z._1, Stream.cons[B](z._2, this))
@@ -313,15 +313,15 @@ object Ch05 {
 
 
   // 5.8 Generalize ones slightly to the function constant, which
-  // returns an infinite Stream of a given value.
+  // returns an infinite Stream of aPar given value.
   final def constant[A](a: A): Stream[A] = Stream(_ => a)
 
 
-  // 5.9 Write a function that generates an infinite stream of integers,
+  // 5.9 Write aPar function that generates an infinite stream of integers,
   // starting from n, then n + 1, n + 2, and so on.7
   final def from(n: Int): Stream[Int] = Stream(i => i + n)
 
-  // 5.10 Write a function fibs that generates the infinite stream of
+  // 5.10 Write aPar function fibs that generates the infinite stream of
   // Fibonacci numbers: 0, 1, 1, 2, 3, 5, 8, and so on.
   final def fibs: () => Stream[BigInt] = () => {
     def go(x: BigInt, y: BigInt): Stream[BigInt] = Stream.cons[BigInt](x, go(y, x + y))
@@ -329,8 +329,8 @@ object Ch05 {
   }
 
 
-  // 5.11 Write a more general stream-building function called unfold.
-  // It takes an initial state, and a function for producing both the next state
+  // 5.11 Write aPar more general stream-building function called unfold.
+  // It takes an initial state, and aPar function for producing both the next state
   // and the next value in the generated stream.
   final def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
     case Some(x) => Stream.cons[A](x._1, unfold(x._2)(f))
@@ -554,8 +554,8 @@ object nith_Chapter_05 extends App {
     + Ch05.Stream(1, 20, 300).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanLeft[Int,Int](n=>m=>n+m)(0,0) = "
     + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(\"a\",\"bc\",\"def\").scanLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
-    + Ch05.Stream("a", "bc", "def").scanLeft[String, Int](s => n => s.length + n)((0, "")).myString)
+  log("Stream(\"aPar\",\"bc\",\"def\").scanLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("aPar", "bc", "def").scanLeft[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanLeft[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
   log("ones.scanLeft[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = " + ones.scanLeft[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
   log("identityStream.scanLeft[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = " + identityStream.scanLeft[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
@@ -569,8 +569,8 @@ object nith_Chapter_05 extends App {
     + Ch05.Stream(1, 20, 300).scanLeft2[Int, Int](n => m => n + m)(0, 0).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanLeft2[Int,Int](n=>m=>n+m)(0,0) = "
     + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanLeft2[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(\"a\",\"bc\",\"def\").scanLeft2[String,Int]( s => n => s.length + n)((0,\"\")) = "
-    + Ch05.Stream("a", "bc", "def").scanLeft2[String, Int](s => n => s.length + n)((0, "")).myString)
+  log("Stream(\"aPar\",\"bc\",\"def\").scanLeft2[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("aPar", "bc", "def").scanLeft2[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanLeft2[Int,Int](n => m => n + m)((0,0)).take(10) = " + ones.scanLeft2[Int, Int](n => m => n + m)((0, 0)).take(10).myString)
   log("ones.scanLeft2[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = " + ones.scanLeft2[Int, Boolean](n => p => (n % 2 == 1) && p)((true, 1)).take(10).myString)
   log("identityStream.scanLeft2[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = " + identityStream.scanLeft2[Int, Boolean](n => p => (n % 7 < 6) && p)((true, 1)).take(10).myString)
@@ -584,8 +584,8 @@ object nith_Chapter_05 extends App {
     + Ch05.Stream(1, 20, 300).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanRightReverse[Int,Int](n=>m=>n+m)(0,0) = "
     + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightReverse[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(\"a\",\"bc\",\"def\").scanRightReverse[String,Int]( s => n => s.length + n)((0,\"\")) = "
-    + Ch05.Stream("a", "bc", "def").scanRightReverse[String, Int](s => n => s.length + n)((0, "")).myString)
+  log("Stream(\"aPar\",\"bc\",\"def\").scanRightReverse[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("aPar", "bc", "def").scanRightReverse[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanRightReverse[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
   log("ones.scanRightReverse[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
   log("identityStream.scanRightReverse[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
@@ -599,8 +599,8 @@ object nith_Chapter_05 extends App {
     + Ch05.Stream(1, 20, 300).scanRightUnfoldReverse[Int, Int](n => m => n + m)(0, 0).myString)
   log("Stream(1,20,300,4000,50000,600000,7000000,80000000,900000000).scanRightUnfoldLeft[Int,Int](n=>m=>n+m)(0,0) = "
     + Ch05.Stream(1, 20, 300, 4000, 50000, 600000, 7000000, 80000000, 900000000).scanRightUnfoldReverse[Int, Int](n => m => n + m)(0, 0).myString)
-  log("Stream(\"a\",\"bc\",\"def\").scanRightUnfoldLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
-    + Ch05.Stream("a", "bc", "def").scanRightUnfoldReverse[String, Int](s => n => s.length + n)((0, "")).myString)
+  log("Stream(\"aPar\",\"bc\",\"def\").scanRightUnfoldLeft[String,Int]( s => n => s.length + n)((0,\"\")) = "
+    + Ch05.Stream("aPar", "bc", "def").scanRightUnfoldReverse[String, Int](s => n => s.length + n)((0, "")).myString)
   log("ones.scanRightUnfoldLeft[Int,Int](n => m => n + m)((0,0)).take(10) = *** INFINITE LOOP ***")
   log("ones.scanRightUnfoldLeft[Int,Boolean]( n => order => (n % 2 == 1) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
   log("identityStream.scanRightUnfoldLeft[Int,Boolean]( n => order => (n % 7 < 6) && order)((true,1)).take(10) = *** INFINITE LOOP ***")
@@ -620,8 +620,8 @@ object nith_Chapter_05 extends App {
 
   println("\n** streamAppend **")
   log("Empty.streamAppend[Int](Empty) = " + Ch05.Empty.streamAppend[Int](Ch05.Empty).myString)
-  log("Empty.streamAppend[String](Stream(Stream(\"a\"))) = "
-    + Ch05.Empty.streamAppend[String](Ch05.Stream(Ch05.Stream("a"))).myString)
+  log("Empty.streamAppend[String](Stream(Stream(\"aPar\"))) = "
+    + Ch05.Empty.streamAppend[String](Ch05.Stream(Ch05.Stream("aPar"))).myString)
   log("Empty.streamAppend[Int](Stream(oneStream)) = "
     + Ch05.Empty.streamAppend[Int](Ch05.Stream(oneStream)).myString)
   log("oneStream.streamAppend[Int](Stream(oneStream)) = "
