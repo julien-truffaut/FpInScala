@@ -64,7 +64,7 @@ object Ch8 {
     // from each Gen with probability proportional to its weight.
     def weighted[A](g1: (Gen[A],Double), g2: (Gen[A],Double)): Gen[A] = ???
 
-    case class SGen[+A](forSize: Int => Phase2.Gen[A])
+    case class SGen[A](forSize: Int => Phase2.Gen[A])
 
     // 8.10 Implement helper functions for converting Gen to SGen. You can add this as a method on Gen.
 

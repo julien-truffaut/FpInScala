@@ -69,7 +69,8 @@ object Ch8 {
     case class Gen[A](sample: State[RNG,A]) {
       def map[B](f: A => B): Gen[B] = Gen(sample.map(f))
       def flatMap[B](f: A => Gen[B]): Gen[B] = Gen(sample.flatMap(a => f(a).sample))
-      def listOfN(size: Gen[Int]): Gen[List[A]] = ???
+      def listOfN(size: Int): Gen[List[A]] = Phase2.listOfN(size, this)
+      def listOfN(size: Gen[Int]): Gen[List[A]] = size.flatMap(listOfN)
     }
 
 
@@ -148,9 +149,13 @@ object Ch8 {
   }
 
   object Phase3 {
+    import Ch6.RNG
+    import StateEx._
     type FailedCase = String
     type SuccessCount = Int
     type TestCases = Int
+    type MaxSize = Int
+
 
     sealed trait Result {
       def isFalsified: Boolean
@@ -164,21 +169,82 @@ object Ch8 {
       def isFalsified = true
     }
 
-    case class Prop(run: (TestCases,RNG) => Result){ self =>
+    case class Prop(run: (MaxSize,TestCases,RNG) => Result){ self =>
       def &&(other: Prop): Prop = Prop(
-        (n, rng) =>
-          self.run(n,rng) match {
+        (max, n, rng) =>
+          self.run(max,n,rng) match {
             case f: Falsified => f
-            case Passed =>  other.run(n,rng)
+            case Passed =>  other.run(max,n,rng)
         }
       )
     }
+
+    def forAll[A](g: SGen[A])(f: A => Boolean): Prop =
+      forAll(g.forSize)(f)
+
+    def forAll[A](g: Int => Gen[A])(f: A => Boolean): Prop = Prop {
+      (max, n, rng) =>
+        val casesPerSize = (n + (max - 1)) / max
+        val props: Stream[Prop] =
+        Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
+        val prop: Prop = props.map(p => Prop { (max, _, rng) =>
+          p.run(max, casesPerSize, rng)
+        }).toList.reduce(_ && _)
+        prop.run(max, n, rng)
+    }
+
+    def forAll[A](a: Gen[A])(f: A => Boolean): Prop = Prop {
+      (max, n, rng) =>
+        val as = a.listOfN(n).sample.run(rng)._1
+        as.dropWhile(f) match {
+          case Nil     => Passed
+          case x :: xs => Falsified(x.toString, n - xs.size - 1)
+        }
+      }
+
+    case class Gen[A](sample: State[RNG,A]) {
+      def map[B](f: A => B): Gen[B] = Gen(sample.map(f))
+      def flatMap[B](f: A => Gen[B]): Gen[B] = Gen(sample.flatMap(a => f(a).sample))
+      def listOfN(size: Int): Gen[List[A]] = Gen(State.sequence(List.fill(size)(sample)))
+      def listOfN(size: Gen[Int]): Gen[List[A]] = size.flatMap(listOfN)
+      def unsized: SGen[A] = SGen(_ => this)
+    }
+
+    object Gen {
+      def choose(start: Int, stopExclusive: Int): Gen[Int] =
+        Gen(State[RNG, Int](rng => rng.nextInt).map(i => i % (stopExclusive - start) + start))
+
+      def unit[A](a: => A): Gen[A] = Gen(State[RNG, A](
+        rng => (a, rng)
+      ))
+
+      def int: Gen[Int] = Gen(State(_.nextInt))
+      def nonNegativeInt: Gen[Int] =
+        int.flatMap(i => if(i == Int.MinValue) nonNegativeInt else unit(i.abs))
+    }
+
+    case class SGen[A](forSize: Int => Gen[A])
+
+    object SGen {
+      def listOf[A](g: Gen[A]): SGen[List[A]] =
+        SGen(g.listOfN)
+
+      def listOf1[A](g: Gen[A]): SGen[List[A]] =
+        SGen(n => g.listOfN(n max 1))
+    }
+
+    // 8.12 Implement a listOf combinator that doesn’t accept an explicit size. It should return an SGen
+    // instead of a Gen. The implementation should generate lists of the requested size.
+
+
+    // 8.13 Define listOf1 for generating nonempty lists, and then update your specification of max to use this generator.
+
 
   }
 
 }
 
-object Ch8App extends App {
+object Ch8Phase2App extends App {
   import Ch8.Phase2._
 
   val rng = SimpleRNG(1000)
@@ -187,5 +253,18 @@ object Ch8App extends App {
   val five: Gen[Int] = unit(5)
 
   print(Phase2.forAll(nonNegativeInt){i => println(i); i > 0}.check(100, rng))
+
+}
+
+object Ch8Phase3App extends App {
+  import Ch8.Phase3._
+
+  val smallInt = Gen.choose(-10,10)
+  val maxProp = forAll(SGen.listOf1(smallInt)) { ns =>
+    val max = ns.max
+    !ns.exists(_ > max)
+  }
+
+  println(maxProp.run(10, 5, SimpleRNG(1000)))
 
 }
