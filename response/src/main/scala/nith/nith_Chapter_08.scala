@@ -65,7 +65,7 @@ object Ch08 {
     // Try implementing unit, boolean, and listOfN.
     final def unit[A](a: => A): Gen[A] = new Gen[A](unitState[RNG, A](a))
 
-    final def boolean: Gen[Boolean] = new Gen[Boolean](new State[RNG, Boolean](rng => rng.nextInt match {
+    final def boolGen: Gen[Boolean] = new Gen[Boolean](new State[RNG, Boolean](rng => rng.nextInt match {
       case (n, r) => (n % 2 == 0, r)
     }))
 
@@ -78,9 +78,9 @@ object Ch08 {
 
     // 8.7 Implement union, for combining two generators of the same type into one,
     // by pulling values from each generator with equal likelihood.
-    final def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] = boolean.flatMap[A](p => if (p) g1 else g2)
+    final def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] = boolGen.flatMap[A](p => if (p) g1 else g2)
 
-    final def unionLazy[A](g1: => Gen[A], g2: => Gen[A]): Gen[A] = boolean.flatMap[A](p => if (p) g1 else g2)
+    final def unionLazy[A](g1: => Gen[A], g2: => Gen[A]): Gen[A] = boolGen.flatMap[A](p => if (p) g1 else g2)
 
     // 8.8 Implement weighted, aPar version of union that accepts aPar weight for each Gen and generates values
     // from each Gen with probability proportional to its weight.
@@ -132,11 +132,7 @@ object Ch08 {
       }
     }
 
-    def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = unfold(rng)(rng => Some(g.sample.run(rng)))
-
-    def randomList[A](g: Gen[A])(rng: RNG)(size: Int): List[A] = randomStream[A](g)(rng).take(size).toList
-
-    def randomIntList(size: Int): List[Int] = randomList[Int](intGen)(SimpleRNG(System.currentTimeMillis))(size)
+    final def randomStream[A](length: Int)(g: Gen[A])(rng: RNG): Stream[A] = unfold2(length)(rng)(rng => g.sample.run(rng))
 
     def buildMsg[A](s: A, e: Exception): String =
       s"test case: $s\n" +
@@ -146,7 +142,7 @@ object Ch08 {
     def forAll[A](aGen: Gen[A])(P: A => Boolean): Prop = Prop {
       (n, rng) => {
         val lazyIdentity: (=> Int) => Int = n => n
-        val indexedAstream: Stream[(A, Int)] = randomStream[A](aGen)(rng).zip[Int](Stream(lazyIdentity).take(n))
+        val indexedAstream: Stream[(A, Int)] = randomStream[A](n)(aGen)(rng).zip[Int](Stream(lazyIdentity))
         val mapli: (=> Tuple2[A, Int]) => Result = x => try {
           lazy val testResult: Boolean = P(x._1)
           if (testResult) Passed else Falsified(x._1.toString, x._2)
@@ -177,7 +173,7 @@ object Ch08 {
   object Phase3 {
 
     import Ch07.Phase3.Par._
-    import Phase2.{Gen, Passed, Falsified, Result, SGen, TestCases, unit, weighted, choose, intListGen}
+    import Phase2.{Gen, Passed, Falsified, Result, SGen, TestCases, boolGen, choose, intGen, intListGen, unit, weighted}
 
     case object Proved extends Result {
       final def isFalsified = false
@@ -260,10 +256,11 @@ object Ch08 {
 
     final def forAll[A](g: Int => Gen[A])(P: A => Boolean): Prop = Prop {
       (max, numTestCases, rng) =>
+        val testCaseIndizes: List[Int] = List.integers(0)(numTestCases.min(max) - 1)
         val casesPerSize: Int = (numTestCases + max) / (max.abs + 1)
         val propSequence: Int => Phase2.Prop = i => Phase2.forAll(g(i))(P)
-        val propPhase2List: List[Phase2.Prop] = List.map(List.integers(0)(numTestCases.min(max)))(propSequence)
-        val propPhase3List: List[Prop] = List.map(propPhase2List)(p => Prop {
+        val propPhase2List: List[Phase2.Prop] = List.map[Int, Phase2.Prop](testCaseIndizes)(propSequence)
+        val propPhase3List: List[Prop] = List.map[Phase2.Prop, Phase3.Prop](propPhase2List)(p => Prop {
           (_, _, rng) => p.run(casesPerSize, rng)
         })
         val prop: Prop = List.foldLeft[Prop, Prop](propPhase3List, alwaysPassed)(prop1 => prop2 => prop2.&&(prop1))
@@ -271,33 +268,38 @@ object Ch08 {
     }
 
     final def forAllAll[A](g: Int => Gen[A])(P: A => Prop): Prop = Prop {
-      (max, numTestCases, rng) =>
+      (max, numTestCases, rng) => {
+        val testCaseIndizes: List[Int] = List.integers(0)(numTestCases.min(max) - 1)
         val casesPerSize: Int = (numTestCases + max) / (max.abs + 1)
         val propSequence: Int => Phase2.Prop = i => Phase2.forAll(g(i))(a => P(a).toBool(max)(numTestCases)(rng))
-        val propPhase2List: List[Phase2.Prop] = List.map(List.integers(0)(numTestCases.min(max)))(propSequence)
-        val propPhase3List: List[Prop] = List.map(propPhase2List)(p => Prop {
+        val propPhase2List: List[Phase2.Prop] = List.map[Int, Phase2.Prop](testCaseIndizes)(propSequence)
+        val propPhase3List: List[Prop] = List.map[Phase2.Prop, Phase3.Prop](propPhase2List)(p => Prop {
           (_, _, rng) => p.run(casesPerSize, rng)
         })
         val prop: Prop = List.foldLeft[Prop, Prop](propPhase3List, alwaysPassed)(prop1 => prop2 => prop2.&&(prop1))
-        //  logg("...Phase3.forAllAll: max=" + max + "  numTestCases=" + numTestCases + "    casesPerSize=" + casesPerSize + "   propPhase2List.size=" + List.length(propPhase2List) + "   propPhase3List.size=" + List.length(propPhase3List))
+        //        logg("...Phase3.forAllAll: max=" + max + "\tnumTestCases=" + numTestCases + "\tcasesPerSize=" + casesPerSize
+        //          + "\tpropPhase2List.size=" + List.length(propPhase2List) + "\tpropPhase3List.size")(List.length(propPhase3List))
         prop.run(max, numTestCases, rng)
+      }
     }
 
-    final def check(p: => Boolean): Prop = Prop {(_, _, _) => if (p) Proved else Falsified("()", 0) }
+    final def check(p: => Boolean): Prop = Prop {
+      (_, _, _) => if (p) Proved else Falsified("()", 0)
+    }
 
-    final def genExecService(n:Int): Gen[ExecutorService] = {
-      val weightForFixedPool:Double = 1/(1+n.abs)
-      val threadPoolSize:Int = 4+n.abs*n.abs
-//      logg("...genExecService: n="+n+"\tthreadPoolSize"+threadPoolSize+"\tweightForFixedPool")(weightForFixedPool)
-      val genExService : Gen[ExecutorService] = weighted[ExecutorService]((unit(Executors.newFixedThreadPool(threadPoolSize)), weightForFixedPool),(unit(esUnlimited), 1-weightForFixedPool))
+    final def genExecService(n: Int): Gen[ExecutorService] = {
+      val weightForFixedPool: Double = 1 / (1 + n.abs)
+      val threadPoolSize: Int = 4 + n.abs * n.abs
+      //      logg("...genExecService: n="+n+"\tthreadPoolSize"+threadPoolSize+"\tweightForFixedPool")(weightForFixedPool)
+      val genExService: Gen[ExecutorService] = weighted[ExecutorService]((unit(Executors.newFixedThreadPool(threadPoolSize)), weightForFixedPool), (unit(esUnlimited), 1 - weightForFixedPool))
       genExService
     }
 
     final def forAllPar[A](g: Int => Gen[A])(f: A => Par[Boolean]): Prop = {
-      def exServiceA(n:Int) : Gen[(ExecutorService,A)] = genExecService(n).**(g(n))
+      def exServiceA(n: Int): Gen[(ExecutorService, A)] = genExecService(n).**(g(n))
       forAll[(ExecutorService, A)](exServiceA) {
         case (exSe, a) => {
-          val p : Boolean = f(a)(exSe).get
+          val p: Boolean = f(a)(exSe).get
           shutExecService(false)(exSe)
           p
         }
@@ -312,15 +314,36 @@ object Ch08 {
     final def parGen(rng: RNG)(n: Int): Gen[Par[Int]] = {
       val intList: List[Int] = intListGen(n).sample.run(rng)._1
       val sortIntListPar: Par[List[Int]] = mergeSortPar(intList)
-      def chooseFun(k:Int):Par[Int] = {
-//        logg("...parGen.chooseFun: k"+k+"\tsumProdMaxIntList(intList)(k)=")(sumProdMaxIntList(intList)(k)(esUnlimited).get)
-//        logg("prodIntList")(prodIntList(intList)(esUnlimited).get)
+      def chooseFun(k: Int): Par[Int] = {
+        //        logg("...parGen.chooseFun: k"+k+"\tsumProdMaxIntList(intList)(k)=")(sumProdMaxIntList(intList)(k)(esUnlimited).get)
+        //        logg("prodIntList")(prodIntList(intList)(esUnlimited).get)
         Par.flatMap[List[Int], Int](sortIntListPar)(l => sumProdMaxIntList(l)(k))
       }
-//      logg("...parGen: intList")(List.myString(intList))
+      //      logg("...parGen: intList")(List.myString(intList))
       choose(-n, n).map[Par[Int]](chooseFun)
     }
 
+    // 8.19 Hard: We want to generate a function that uses its argument in some way to select which Int to return. Can
+    // you think of a good way of expressing this? This is a very openended and challenging design exercise. See what
+    // you can discover about this problem and if there’s a nice general solution that you can incorporate into the
+    // library we’ve developed so far.
+    final def funGen[A, B](aGen: Gen[A])(bGen: Gen[B])(f: A => B)(n: Int): Gen[A => B] = {
+      def funRun: RNG => ((A => B), RNG) = rng => {
+        // Randomly generate a list of n pairs (a,b)
+        val abGenList: Gen[List[(A, B)]] = Phase2.listOfN[(A, B)](n, aGen.**(bGen))
+        val abListRng: (List[(A, B)], RNG) = abGenList.sample.run(rng)
+        logg("...funGen: abList")(List.myString(abListRng._1))
+        // Use the list to modify f
+        val fun: A => B = modifyFun[A, B](f)(abListRng._1)
+        (fun, abListRng._2)
+      }
+      def funSample: State[RNG, A => B] = new State[RNG, A => B](funRun)
+      new Gen[A => B](funSample)
+    }
+
+    final def intFunGen: Int => Gen[Int => Int] = funGen[Int, Int](intGen)(intGen)(i => i)
+
+    final def intPredEvenGen: Int => Gen[Int => Boolean] = funGen[Int, Boolean](intGen)(boolGen)(i => (i % 2 == 0))
 
   }
 
@@ -329,8 +352,8 @@ object Ch08 {
 object nith_Chapter_08 extends App {
 
   import Ch07.Phase3.Par._
-  import Ch08.Phase2.{boolean, choose, forAll, Gen, intGen, intListGen, listOf, listOfN, Passed, randomIntList, Result, SGen, union, unit, weighted}
-  import Ch08.Phase3.{check, forAllAll, forAllPar, parGen, Prop, Proved, run, unitParGen}
+  import Ch08.Phase2.{boolGen, choose, forAll, Gen, intGen, intListGen, listOf, listOfN, Passed, Result, SGen, union, unit, weighted}
+  import Ch08.Phase3.{check, forAllAll, forAllPar, intPredEvenGen, parGen, Prop, Proved, run, unitParGen}
   import java.util.concurrent._
   import java.util.concurrent.atomic.AtomicInteger
 
@@ -342,7 +365,6 @@ object nith_Chapter_08 extends App {
     val (n, rng2) = rng.nextInt
     ((n, rng2), rng2)
   })
-
 
   logg("rng0")(rng0)
   logg("rng1")(rng1)
@@ -358,8 +380,8 @@ object nith_Chapter_08 extends App {
   println("\n** Exercise 8.5 **")
   logg("unit(\"aPar\").sample.run(rng0)")(unit("aPar").sample.run(rng0))
   logg("unit(\"aPar\").sample.run(unit(\"aPar\").sample.run(rng0)._2)")(unit("aPar").sample.run(unit("aPar").sample.run(rng0)._2))
-  logg("boolean.sample.run(rng0)")(boolean.sample.run(rng0))
-  logg("boolean.sample.run(boolean.sample.run(rng0))")(boolean.sample.run(boolean.sample.run(rng0)._2))
+  logg("boolean.sample.run(rng0)")(boolGen.sample.run(rng0))
+  logg("boolean.sample.run(boolean.sample.run(rng0))")(boolGen.sample.run(boolGen.sample.run(rng0)._2))
   logg("listOfN(10,unit(42)).sample.run(rng0)")(listOfN(10, unit(42)).sample.run(rng0))
   logg("listOfN[Int](10,choose(0,42)).sample.run(rng0)")(listOfN[Int](10, choose(0, 42)).sample.run(rng0))
 
@@ -462,19 +484,36 @@ object nith_Chapter_08 extends App {
   logg("because of some overflow: (-2147483648)*(-150241704)")((-2147483648) * (-150241704))
   logg("but as BigInt: prodBigIntList(List(-2147483648,-150241704))(esUnlimited).get")(prodBigIntList(List(-2147483648, -150241704))(esUnlimited).get)
   println()
-  val testParMapIdentity: Boolean => Par[Int] => Par[Boolean] = (debug:Boolean) => (nPar: Par[Int]) => {
+  val testParMapIdentity: Boolean => Par[Int] => Par[Boolean] = (debug: Boolean) => (nPar: Par[Int]) => {
     if (debug) logg("...testParMapIdentity: nPar(esUnlimited).get")(nPar(esUnlimited).get)
     equal[Int](Par.map(nPar)(y => y))(nPar)
   }
-  logg("run(forAllPar[Par[Int]](parGen)(nPar => equal(Par.map(nPar)(y => y))(nPar)),128,128)")(run(forAllPar[Par[Int]](parGen(rngTime))(testParMapIdentity(false)),128,128))
+  logg("run(forAllPar[Par[Int]](parGen)(nPar => equal(Par.map(nPar)(y => y))(nPar)),128,128)")(run(forAllPar[Par[Int]](parGen(rngTime))(testParMapIdentity(false)), 128, 128))
 
 
   println("\n** Exercise 8.17 **")
-  val testParFork: Boolean => Par[Int] => Par[Boolean] = (debug:Boolean) => (nPar: Par[Int]) => {
+  val testParFork: Boolean => Par[Int] => Par[Boolean] = (debug: Boolean) => (nPar: Par[Int]) => {
     if (debug) logg("...testParFork: nPar(esUnlimited).get")(nPar(esUnlimited).get)
     equal[Int](Par.fork(nPar))(nPar)
   }
-  logg("run(forAllPar[Par[Int]](parGen)(nPar => equal(Par.fork(nPar))(nPar)),128,128)")(run(forAllPar[Par[Int]](parGen(rngTime))(testParFork(false)),128,128))
+  logg("run(forAllPar[Par[Int]](parGen)(nPar => equal(Par.fork(nPar))(nPar)),128,128)")(run(forAllPar[Par[Int]](parGen(rngTime))(testParFork(false)), 128, 128))
+
+  println("\n** Exercise 8.18 and 8.19 **")
+  /*  logg("XXX")(run(Ch08.Phase3.forAll[Int=>Boolean](intPredEvenGen)(p => {logg("...p")(p)
+      p==p
+    }),2,4))*/
+  val testTakeOnly: Boolean => (Int => Boolean) => List[Int] => Boolean = debug => p => ints => {
+    val result: Boolean = ints.takeOnly(p).forAll(p)
+    if (debug) logg("... testTakeOnly: ints=" + List.myString(ints)
+      + "\t ints.takeOnly(p)=" + List.myString(ints.takeOnly(p))
+      + "\tresult")(result)
+    result
+  }
+  logg("run(forAllAll[Int=>Boolean](intPredGen)(p => forAll[List[Int]](intListGen)(testTakeOnly(true)(p))),4,8)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(testTakeOnly(true)(p))), 4, 8))
+  logg("run(forAllAll[Int=>Boolean](intPredGen)(p => forAll[List[Int]](intListGen)(testTakeOnly(false)(p))),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(testTakeOnly(false)(p))), 32, 64))
+
+  logg("run(forAllAll[Int => Boolean](intPredEvenGen)(p => forAll[List[Int]](intListGen)(ints => ints.dropWhile(p).takeWhile(p)==Nil)),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(ints => ints.dropWhile(p).takeWhile(p) == Nil)), 32, 64))
+  logg("run(forAllAll[Int => Boolean](intPredEvenGen)(p => forAll[List[Int]](intListGen)(ints => ints.takeWhile(p).dropWhile(p)==Nil)),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(ints => ints.takeWhile(p).dropWhile(p) == Nil)), 32, 64))
 
   println()
   println("*** Not finished yet ***")

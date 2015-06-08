@@ -1,11 +1,58 @@
 import scala.annotation.tailrec
 import util._
+import Ch04_Option._
 
-sealed trait List[+A]
+sealed trait List[+A] {
 
-//case object Nil extends List[Nothing]
-//
-//case class Cons[+A](head: A, tail: List[A]) extends List[A]
+  import List._
+
+  final def headOption: Option[A] = this match {
+    case Nil => None
+    case Cons(h, t) => Some[A](h)
+  }
+
+  // 3.5 Implement dropWhile, which removes elements from the List prefix as long as they match a predicate.
+  @tailrec
+  final def dropWhile(p: A => Boolean): List[A] = this match {
+    case Nil => Nil
+    case Cons(h, t) => if (p(h)) t.dropWhile(p) else this
+  }
+
+  final def getFirst(p: A => Boolean): Option[A] = dropWhile(a => !p(a)).headOption
+
+  final def getFirstDefault[B >: A](p: A => Boolean)(z: B): B = getFirst(p).getOrElse(z)
+
+  final def mergeSort(order: A => A => Boolean): List[A] = merge[A](splitIntoReversedListOfSingletons[A](this))(order)
+
+  def shrink(equal: A => A => Boolean): List[A] = foldLeft[A, List[A]](List.reverse(this), Nil)(a1 => as => as match {
+    case Cons(a2, aTail) if equal(a1)(a2) => as
+    case _ => Cons(a1, as)
+  })
+
+  def shrink: List[A] = shrink(a1 => a2 => a1 == a2)
+
+  final def takeWhile(p: A => Boolean): List[A] = {
+    // takes the initial segment as long as all its elements satisfy p
+    @tailrec
+    def go(as: List[A])(intRes: List[A]):List[A] = as match {
+        case Cons(h, t) => if (p(h)) go(t)(Cons(h, intRes)) else intRes
+        case _ => intRes
+      }
+    List.reverse(go(this)(Nil))
+  }
+
+  final def takeOnly(p: A => Boolean): List[A] = foldLeft[A, List[A]](List.reverse(this), Nil)(a => as => if (p(a)) Cons(a, as) else as)
+
+    @tailrec
+  final def exists(p: A => Boolean): Boolean = this match {
+    case Cons(h, t) => p(h) || t.exists(p)
+    case _ => false
+  }
+
+  final def forAll(p: A => Boolean): Boolean = !this.exists(a => !p(a))
+
+}
+
 
 object List {
 
@@ -13,7 +60,7 @@ object List {
 
   case class Cons[+A](head: A, tail: List[A]) extends List[A]
 
-  def apply[A](as: A*): List[A] = {
+  final def apply[A](as: A*): List[A] = {
     @tailrec
     def go(l: List[A], as: A*): List[A] =
       if (as.isEmpty) l
@@ -21,12 +68,23 @@ object List {
     go(Nil, as.reverse: _*)
   }
 
+  // apply function to generate infinite streams
+  final def funApply[A](f: Int => A)(size: Int): List[A] = {
+    @tailrec
+    def go[A](f: Int => A)(aList: List[A])(i: Int): List[A] =
+      if (i == 0) aList else go[A](f)(Cons(f(size - i), aList))(i - 1)
+    List.reverse(go(f)(Nil)(size))
+  }
 
   //exercise 3.2
   // Implement the function tail for removing the first element of aPar List. Note that the
   // function takes constant time. What are different choices you could make in your
   // implementation if the List is Nil? We’ll return to this question in the next chapter.
-  def head[A](l: Cons[A]): A = l match {case Cons(x, t) => x}
+
+  def head[A](l: Cons[A]): A = l match {
+    case Cons(x, t) => x
+  }
+
 
   def tail[A](l: List[A]): List[A] = l match {
     case Nil => Nil
@@ -48,21 +106,14 @@ object List {
   }
 
   def dropMod[A](as: Cons[A])(n: Int): Cons[A] = {
-    val nModl : Int = mod(n)(List.length(as))
-//    logg("...dropMod: as="+myString(as)+"\tn="+n+"\tList.length(as)="+List.length(as)+"\tnModl")(nModl)
+    val nModl: Int = mod(n)(List.length(as))
+    //    logg("...dropMod: as="+myString(as)+"\tn="+n+"\tList.length(as)="+List.length(as)+"\tnModl")(nModl)
     as match {
       case Cons(a1, Cons(a2, aTail)) if nModl > 0 => dropMod(Cons(a2, aTail))(nModl)
       case _ => as
     }
   }
 
-
-  //exercise 3.5
-  @tailrec
-  def dropWhile[A](l: List[A])(f: A => Boolean): List[A] = l match {
-    case Cons(x, t) if f(x) => dropWhile(t)(f)
-    case _ => l
-  }
 
   //exercise 3.6
   def init[A](l: List[A]): List[A] = l match {
@@ -122,7 +173,7 @@ object List {
     // log("foldLeft(%s)".format(as + "," + z))
     as match {
       case Cons(x, Nil) => g(x)
-      case Cons(x1, Cons(x2,xs)) => foldLeftCon(Cons(x2,xs))(a => f(x1)(g(a)))(f)
+      case Cons(x1, Cons(x2, xs)) => foldLeftCon(Cons(x2, xs))(a => f(x1)(g(a)))(f)
     }
   }
 
@@ -131,19 +182,25 @@ object List {
 
   def productFoldLeft(l: List[Int]) = foldLeft(l, 1)(x => if (x == 0) _ => 0 else y => x * y)
 
-  def max[A](as: List[A])(order: A => A => Boolean)(bottom: A) = foldLeft[A,A](as, bottom)(a => interim => if (order(a)(interim)) interim else a)
+  def max[A](as: List[A])(order: A => A => Boolean)(bottom: A) = foldLeft[A, A](as, bottom)(a => interim => if (order(a)(interim)) interim else a)
+
   // min = max for the reverse order
   def min[A](as: List[A])(order: A => A => Boolean)(top: A) = max[A](as)(a1 => a2 => order(a2)(a1))(top)
+
   // min, max for integer Lists
   def max(ints: List[Int]) = max[Int](ints)(i => j => i < j)(Int.MinValue)
+
   def min(ints: List[Int]) = min[Int](ints)(i => j => i < j)(Int.MaxValue)
 
   // min, max for types without bottom or top element
-  def max[A](as: Cons[A])(order: A => A => Boolean) = foldLeftCon[A,A](as)(a=>a)(a => interim => if (order(a)(interim)) interim else a)
+  def max[A](as: Cons[A])(order: A => A => Boolean) = foldLeftCon[A, A](as)(a => a)(a => interim => if (order(a)(interim)) interim else a)
+
   // min = max for the reverse order
   def min[A](as: Cons[A])(order: A => A => Boolean) = max[A](as)(a1 => a2 => order(a2)(a1))
+
   // min, max for String Lists
   def min(strings: Cons[String]) = min[String](strings)(s => t => s < t)
+
   def max(strings: Cons[String]) = max[String](strings)(s => t => s < t)
 
 
@@ -153,13 +210,12 @@ object List {
   def reverse[A](as: List[A]): List[A] = foldLeft(as, Nil: List[A])(a => l => Cons(a, l))
 
   //exercise 3.14
-  def append[A](l1: List[A], l2: List[A]): List[A] = foldLeft(reverse(l1), l2)(a => as => Cons(a, as))
+  final def append[A](l1: List[A], l2: List[A]): List[A] = foldLeft(reverse(l1), l2)(a => as => Cons(a, as))
 
-  //exercise 3.15
-  def concat[A](ass: List[List[A]]): List[A] = ass match {
-    case Nil => Nil
-    case Cons(h, t) => append(h, concat(t))
-  }
+
+  // 3.15 Hard: Write a function that concatenates a list of lists into a single list. Its runtime should be linear in
+  // the total length of all lists. Try to use functions we have already defined.
+  final def concat[A](ass: List[List[A]]): List[A] = foldLeft[List[A],List[A]](ass,Nil)(as => intRes => append[A](intRes,as))
 
   //exercise 3.17
   def myString[A](as: List[A]): String = {
@@ -224,7 +280,7 @@ object List {
   @tailrec
   def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = sub match {
     case Nil => true
-    case Cons(a, as) => List.dropWhile(sup)(x => x != a) match {
+    case Cons(a, as) => sup.dropWhile(x => x != a) match {
       case Nil => false
       case Cons(a1, Nil) => as == Nil
       case Cons(a1, Cons(a2, t)) => isInitialSegment(as, Cons(a2, t)) || hasSubsequence(Cons(a2, t), sub)
@@ -239,9 +295,9 @@ object List {
 
   @tailrec
   final def find[A](as: List[A])(p: A => Boolean): Option[A] = as match {
-      case Cons(h, t) if p(h) => Some(h)
-      case Cons(h, t) if !p(h) => find(t)(p)
-      case _ => None
+    case Cons(h, t) if p(h) => Some(h)
+    case Cons(h, t) if !p(h) => find(t)(p)
+    case _ => None
   }
 
 
@@ -255,9 +311,8 @@ object List {
 
   // needed for chapter 7
   final def take[A](as: List[A])(n: Int): List[A] = as match {
-    case Nil => Nil
-    case Cons(h, t) if (n < 1) => Nil
     case Cons(h, t) if (n > 0) => Cons(h, take(t)(n - 1))
+    case _ => Nil
   }
 
   //    @tailrec
@@ -276,6 +331,7 @@ object List {
   }
 
   final def merge[A](left: List[A])(right: List[A])(order: A => A => Boolean): List[A] = {
+    // merges two lists left and right into a single list according to the order
     @tailrec
     def go(intermedResult: List[A])(left: List[A])(right: List[A])(order: A => A => Boolean): List[A] = left match {
       case Nil => List.append[A](List.reverse(intermedResult), right)
@@ -291,9 +347,9 @@ object List {
 
   final def splitIntoReversedListOfSingletons[A](as: List[A]): List[List[A]] = List.foldLeft[A, List[List[A]]](as, Nil)(a => ass => Cons(Cons(a, Nil), ass))
 
-  def mergeSort[A](as: List[A])(order: A => A => Boolean): List[A] = merge[A](splitIntoReversedListOfSingletons[A](as))(order)
+  //  def mergeSort[A](as: List[A])(order: A => A => Boolean): List[A] = merge[A](splitIntoReversedListOfSingletons[A](as))(order)
 
-  final def mergeSort(ints: List[Int]): List[Int] = mergeSort[Int](ints)(i => j => i <= j)
+  final def mergeSort(ints: List[Int]): List[Int] = ints.mergeSort(i => j => i <= j)
 
   final def isSortedMax[A](as: List[A])(order: A => A => Boolean)(z: (Boolean, A)): (Boolean, A) = as match {
     case Cons(a, aTail) if z._1 => isSortedMax[A](aTail)(order)((order(z._2)(a), a))
@@ -307,10 +363,24 @@ object List {
 
   def isSorted(ints: List[Int]): Boolean = isSorted[Int](ints)(i => j => i <= j)
 
-  final def unfold[A, S](z: S)(f: S => Option[(A, S)]): List[A] = f(z) match {
+  /*
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): List[A] = f(z) match {
     case Some(x) => Cons[A](x._1, unfold(x._2)(f))
     case None => Nil
   }
+*/
+
+
+  def modifyFun[A, B](f: A => B)(abLst: List[(A, B)]): A => B = a => {
+    val abListShrunk : List[(A, B)] = abLst.shrink(ab => cd => ab._1 == cd._1)
+    abListShrunk.getFirstDefault[(A, B)](ab => a == ab._1)((a, f(a)))._2
+  }
+
+  // better performing function if we can sort the list
+  def modifyFunOrdered[A ,B](order: A=>A=>Boolean)(f:A=>B)(abLst:List[(A,B)]):A=>B = modifyFun[A, B](f)(abLst.mergeSort(x => y => order(x._1)(y._1)))
+
+  def modifyIntFun[B](f:Int=>B)(l:List[(Int,B)]) : Int=>B = modifyFunOrdered[Int, B](i => j => i < j)(f)(l)
+
 }
 
 sealed trait Tree[+A]
@@ -397,6 +467,8 @@ object nith_Chapter_03 {
 
   def main(args: Array[String]) {
 
+    val intSmaller: Int => Int => Boolean = n => m => n < m
+    val doubleSmaller: Double => Double => Boolean = n => m => n < m
     val nilList: List[Double] = Nil
     val oneList: List[Int] = Cons(1, Nil)
     val strList: List[String] = Cons("aPar", Cons("b", Nil))
@@ -430,9 +502,9 @@ object nith_Chapter_03 {
     log("drop(fivList,0)=" + drop(fivList, 0))
     log("drop(fivList,3)=" + drop(fivList, 3))
     log("drop(fivList,9)=" + drop(fivList, 9))
-    log("dropWhile(fivList)(i=>(i==i))=" + dropWhile(fivList)(i => i == i))
-    log("dropWhile(fivList)(i=>(i<4))=" + dropWhile(fivList)(i => i < 4))
-    log("dropWhile(fivList)(i=>(i%3<2))=" + dropWhile(fivList)(i => i % 3 < 2))
+    log("fivList.dropWhile(i=>(i==i))=" + fivList.dropWhile(i => i == i))
+    log("fivList.dropWhile(i=>(i<4))=" + fivList.dropWhile(i => i < 4))
+    log("fivList.dropWhile(i=>(i%3<2))=" + fivList.dropWhile(i => i % 3 < 2))
     log("****** method init ******")
     log("init(oneList)=" + init(oneList))
     log("init(strList)=" + init(strList))
@@ -467,8 +539,8 @@ object nith_Chapter_03 {
     log("append(fivList,tenList)=" + myString(append(fivList, tenList)))
     log("concat(fivList,strList,tenList)=" + myString(concat(List(fivList, strList, tenList))))
     log("map(fivList)(n=>n+1)=" + myString(map(fivList)(n => n + 1)))
-    log("map(dblList)(toString)=" + myString(map(dblList)(d => d.toString)))
-    
+    log("map(dblList)(toString)=" + myString(map[Double, String](dblList)(d => d.toString)))
+
     println("\n Max and Min of aPar list")
     log("min(Nil)                                                 = " + min(Nil))
     log("max(Nil)                                                 = " + max(Nil))
@@ -485,8 +557,8 @@ object nith_Chapter_03 {
     log("max[Int](hunListReversed)(i=>j=>true)(Int.MinValue)      = " + max[Int](hunListReversed)(i => j => true)(Int.MinValue))
     log("max[Int](List(0,1,2))(i=>j=>(i+j)%2==1)(Int.MinValue)    = " + max[Int](List(0, 1, 2))(i => j => (i + j) % 2 == 1)(Int.MinValue))
     log("max[Int](List(0,1,2,3))(i=>j=>(i+j)%2==1)(Int.MinValue)  = " + max[Int](List(0, 1, 2, 3))(i => j => (i + j) % 2 == 1)(Int.MinValue))
-    log("min(List(\"aPar\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + min(Cons("aPar",List("b","c","dd","d","az","dd"))))
-    log("max(List(\"aPar\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + max(Cons("aPar",List("b","c","dd","d","az","dd"))))
+    log("min(List(\"aPar\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + min(Cons("aPar", List("b", "c", "dd", "d", "az", "dd"))))
+    log("max(List(\"aPar\",\"b\",\"c\",\"dd\",\"d\",\"az\",\"dd\"))                = " + max(Cons("aPar", List("b", "c", "dd", "d", "az", "dd"))))
 
     println()
     log("flatMap(fivList)(n=>List(n+1))=" + myString(flatMap(fivList)(n => List(n + 1))))
@@ -568,20 +640,47 @@ object nith_Chapter_03 {
     log("integers(0)(0)              = " + myString(integers(0)(0)))
     log("integers(42)(0)             = " + myString(integers(42)(0)))
     log("integers(0)(42)             = " + myString(integers(0)(42)))
+    logg("hunList.takeWhile(n => n<7)")(myString(hunList.takeWhile(n => n<7)))
+    logg("hunList.takeWhile(n => (n%3)<2)")(myString(hunList.takeWhile(n => (n%3)<2)))
+    logg("hunList.takeOnly(n => (n%3)<2)")(myString(hunList.takeOnly(n => (n%3)<2)))
 
     println("\n*** Sorting ***")
-    log("merge(List(0))(List(1))(n=>m=>n<m) = " + myString(merge[Int](List(0))(List(1))(n => m => n < m)))
-    log("merge(fivList)(tenList)(n=>m=>n<m) = " + myString(merge[Int](fivList)(tenList)(n => m => n < m)))
-    log("merge(fivList)(dblList)(n=>m=>n<m) = " + myString(merge[Double](map(fivList)(_.toDouble))(dblList)(n => m => n < m)))
-    log("merge(dblList)(fivList)(n=>m=>n<m) = " + myString(merge[Double](dblList)(map(fivList)(_.toDouble))(n => m => n < m)))
-    log("merge(hunList)(hunList)(n=>m=>n<m) = " + myString(merge[Int](hunList)(hunList)(n => m => n < m)))
-    log("merge(listOfLists)(n=>m=>n<m)      = " + myString(merge[Int](listOfLists)(n => m => n < m)))
+    log("merge(List(0))(List(1))(n=>m=>n<m) = " + myString(merge[Int](List(0))(List(1))(intSmaller)))
+    log("merge(fivList)(tenList)(n=>m=>n<m) = " + myString(merge[Int](fivList)(tenList)(intSmaller)))
+    log("merge(fivList)(dblList)(n=>m=>n<m) = " + myString(merge[Double](map[Int, Double](fivList)(_.toDouble))(dblList)(doubleSmaller)))
+    log("merge(dblList)(fivList)(n=>m=>n<m) = " + myString(merge[Double](dblList)(map[Int, Double](fivList)(_.toDouble))(doubleSmaller)))
+    log("merge(hunList)(hunList)(n=>m=>n<m) = " + myString(merge[Int](hunList)(hunList)(intSmaller)))
+    log("merge(listOfLists)(n=>m=>n<m)      = " + myString(merge[Int](listOfLists)(intSmaller)))
     log("splitIntoReversedListOfSingletons[Int](tenList) = " + myString(splitIntoReversedListOfSingletons[Int](tenList)))
-    log("mergeSort[Int](tenList)(n=>m=>n<m) = " + myString(mergeSort[Int](hunList)(n => m => n < m)))
-    log("mergeSort[Int](tenList)(n=>m=>n<m) = " + myString(mergeSort[Int](hunListReversed)(n => m => n < m)))
+    log("mergeSort[Int](tenList)(n=>m=>n<m) = " + myString(mergeSort(hunList)))
+    log("mergeSort[Int](tenList)(n=>m=>n<m) = " + myString(mergeSort(hunListReversed)))
     log("isSorted[Int](hunList)                  = " + isSorted(hunList))
     log("isSorted[Int](hunListReversed)          = " + isSorted(hunListReversed))
-    log("isSorted[Int](List(0,1,2,3,4,3,4,5,6))) = " + isSorted(List(0,1,2,3,4,3,4,5,6)))
+    log("isSorted[Int](List(0,1,2,3,4,3,4,5,6))) = " + isSorted(List(0, 1, 2, 3, 4, 3, 4, 5, 6)))
+
+    println("\n*** Transforming a List into a function ***")
+    logg("hunList.getFirst(n => (n>0) && (n%7==0))")(hunList.getFirst(n => (n > 0) && (n % 7 == 0)))
+    logg("hunList.getFirst(n => n>100)")(hunList.getFirst(n => n > 100))
+    logg("hunList.getFirstDef(n => (n>0) && (n%7==0))(-42)")(hunList.getFirstDefault(n => (n > 0) && (n % 7 == 0))(-42))
+    logg("hunList.getFirstDef(n => n>100)(-42)")(hunList.getFirstDefault(n => n > 100)(-42))
+    logg("hunList.shrink")(myString(hunList.shrink))
+    logg("map[Int](hunList)(n => n/10).shrink")(myString(map(hunList)(n => n / 10).shrink))
+    logg("List(0,0,0,1,1,1,0,0,0).shrink")(myString(List(0, 0, 0, 1, 1, 1, 0, 0, 0).shrink))
+    logg("hunList.shrink(x => y => x<y)")(myString(hunList.shrink(x => y => x < y)))
+    logg("hunList.shrink(x => y => x<y)")(myString(map(hunList)(n => n * n)))
+
+    val sqaresToCubes:Int => List[(Int,Int)] = size => List.funApply[(Int,Int)](n=>(n*n,n*n*n))(size)
+    logg("sqaresToCubes(4)")(myString(sqaresToCubes(4)))
+    logg("funApply(modifyFun[Int,Int](n => n)(sqaresToCubes(4))(32)")(myString(List.funApply[Int](modifyFun[Int,Int](n => n)(sqaresToCubes(4)))(32)))
+    logg("funApply(modifyIntFun[Int](n => n)(sqaresToCubes(4))(32)")(myString(List.funApply[Int](modifyIntFun[Int](n => n)(sqaresToCubes(4)))(32)))
+
+    val sqaresToCubesDuplicated:Int => List[(Int,Int)] = size => concat[(Int,Int)](List.funApply[List[(Int,Int)]](sqaresToCubes)(size))
+    logg("sqaresToCubesDuplicated(8)")(myString(sqaresToCubesDuplicated(8)))
+    logg("List.length(sqaresToCubesDuplicated(128))")(List.length(sqaresToCubesDuplicated(128)))
+    logg("List.length(sqaresToCubesDuplicated(128))")(List.length(sqaresToCubesDuplicated(128).mergeSort(x => y => x._1 < y._1).shrink(x => y => x._1 == y._1)))
+    logg("funApply(modifyFun[Int,Int](n => n)(sqaresToCubesDuplicated(128))")(myString(List.funApply[Int](modifyFun[Int,Int](n => n)(sqaresToCubesDuplicated(128)))(128*128)))
+    logg("funApply(modifyIntFun[Int](n => n)(sqaresToCubesDuplicated(128))")(myString(List.funApply[Int](modifyIntFun[Int](n => n)(sqaresToCubesDuplicated(128)))(128*128)))
+
+    logg("Chapter 3 done.")("Have a nice day")
   }
 }
-

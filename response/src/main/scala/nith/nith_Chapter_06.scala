@@ -1,4 +1,5 @@
 import util._
+import List._
 import Ch04_Option.{None, Option, Some}
 object Ch06 {
 
@@ -68,7 +69,7 @@ object Ch06 {
     val intRngs: List[(Int, RNG)] = Ch05.unfoldReverse[(Int, RNG), (Int, RNG)](Ch05.Empty)((1, SimpleRNG(0)))(createNext).toList
 
     intRngs match {
-      case List.Cons(n, tail) => (List.map(intRngs)(x => x._1), n._2)
+      case Cons(n, tail) => (List.map[(Int, RNG),Int](intRngs)(x => x._1), n._2)
       case _ => (List.Nil, rng)
     }
   }
@@ -93,7 +94,7 @@ object Ch06 {
 
 
   // 6.6  Write the implementation of map2 based on the following signature.
-  // This function takes two actions, ra and bRand, and aPar function f for combining their results,
+  // This function takes two actions, ra and bRand, and aPar function p for combining their results,
   // and returns aPar new action that combines them:
   final def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
     val (a, rng2) = ra(rng)
@@ -115,7 +116,7 @@ object Ch06 {
 
   //  We set sequence[A](Nil) = rng => (Nil,rng)
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]]
-  = List.foldLeft[Rand[A], Rand[List[A]]](fs, rng => (List.Nil, rng))(ra => rla => map2(ra, rla)(List.Cons(_, _)))
+  = List.foldLeft[Rand[A], Rand[List[A]]](fs, rng => (List.Nil, rng))(ra => rla => map2(ra, rla)(Cons(_, _)))
 
   final def intsSequence(count: Int): Rand[List[Int]] = sequence[Int](List.fill[Rand[Int]](count)(intRand))
 
@@ -157,7 +158,7 @@ object Ch06 {
   }
 
   final def sequenceFlat[A](fs: List[Rand[A]]): Rand[List[A]]
-  = List.foldLeft[Rand[A], Rand[List[A]]](fs, rng => (List.Nil, rng))(ra => rla => map2Flat(ra, rla)(List.Cons(_, _)))
+  = List.foldLeft[Rand[A], Rand[List[A]]](fs, rng => (List.Nil, rng))(ra => rla => map2Flat(ra, rla)(Cons(_, _)))
 
   final def intsSequenceFlat(count: Int): Rand[List[Int]] = sequenceFlat[Int](List.fill[Rand[Int]](count)(intRand))
 
@@ -201,7 +202,7 @@ object Ch06 {
       abState.flatMap[C]((ab => ab match {
         case (a, b)
         => State[S, C](state => {
-          //println("...map2: ab="+ab+"  f(aPar, b)="+f(aPar, b)+"  state="+state)
+          //println("...map2: ab="+ab+"  p(aPar, b)="+p(aPar, b)+"  state="+state)
           val ((a2, b2), state2): ((A, B), S) = abState.run(state)
           (f(a2, b2), state2)
         })
@@ -237,7 +238,7 @@ object Ch06 {
   })
 
   final def sequence[S, A](stateList: List[State[S, A]]): State[S, List[A]]
-  = List.foldLeft[State[S, A], State[S, List[A]]](stateList, State[S, List[A]](state => (List.Nil, state)))(aState => aListState => aState.map2(aListState)(List.Cons(_, _)))
+  = List.foldLeft[State[S, A], State[S, List[A]]](stateList, State[S, List[A]](state => (List.Nil, state)))(aState => aListState => aState.map2(aListState)(Cons(_, _)))
 
   final def intsSequenceState(count: Int): State[RNG, List[Int]] = sequence[RNG, Int](List.fill[RandState[Int]](count)(intRandState))
 
@@ -268,7 +269,7 @@ object Ch06 {
       if (mac.candies < 1) doNothingResult
       else {
         inp match {
-          case List.Cons(inp, inpList) => if (mac.locked == (inp == Turn)) processInput(inpList)(mac)
+          case Cons(inp, inpList) => if (mac.locked == (inp == Turn)) processInput(inpList)(mac)
           else if (inp == Turn) processInput(inpList)(Machine(!mac.locked, mac.candies - 1, mac.coins)) else processInput(inpList)(Machine(!mac.locked, mac.candies, mac.coins + 1))
           case _ => doNothingResult
         }

@@ -150,12 +150,12 @@ object Ch07 {
 
       // book: Once we have sequence, we can complete our implementation of parMap:
       def parMap[A, B](as: List[A])(f: A => B): Par[List[B]] = fork {
-        val fbs: List[Par[B]] = List.map(as)(asyncF(f))
+        val fbs: List[Par[B]] = List.map[A,Par[B]](as)(asyncF(f))
         sequence(fbs)
       }
 
       def parMapBal[A, B](as: List[A])(f: A => B): Par[List[B]] = fork {
-        val fbs: List[Par[B]] = List.map(as)(asyncF(f))
+        val fbs: List[Par[B]] = List.map[A,Par[B]](as)(asyncF(f))
         sequenceBal(fbs)
       }
 

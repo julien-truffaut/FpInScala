@@ -147,9 +147,9 @@ object Ch05 {
       unfold[B, Stream[A]](this)(g)
     }
 /*
-    final def mapUnfold[B](f: A => Option[B]): Stream[B] = {
+    final def mapUnfold[B](p: A => Option[B]): Stream[B] = {
       unfold[B, Stream[A]](this)(aStream => aStream match {
-        case Cons(a, aTail) => f(a()) match {
+        case Cons(a, aTail) => p(a()) match {
           case Some(b) => Some((b, aTail()))
           case _ => None
         }
@@ -226,7 +226,7 @@ object Ch05 {
     // *** scanLeft ***
     // scanRight requires the total result to be the first element of the result stream. Therefore this cannot work on
     // an infinite stream. Good reason to implement scanLeft: the first element contains the defined neutral element for
-    // f. Unfortunately this works only if the result type is aPar super type of A.
+    // p. Unfortunately this works only if the result type is aPar super type of A.
 
     final def scanLeft[B >: A, C](f: B => C => C)(z: (C, B)): Stream[C] = {
       lazy val initialState: (C, Stream[B]) = (z._1, Stream.cons[B](z._2, this))
