@@ -1,3 +1,5 @@
+package fp_nith
+
 import util._
 import List._
 import Ch04_Option.{None, Option, Some}
@@ -94,8 +96,6 @@ object Ch06 {
 
 
   // 6.6  Write the implementation of map2 based on the following signature.
-  // This function takes two actions, ra and bRand, and aPar function p for combining their results,
-  // and returns aPar new action that combines them:
   final def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
     val (a, rng2) = ra(rng)
     val (b, rng3) = rb(rng2)
@@ -202,7 +202,6 @@ object Ch06 {
       abState.flatMap[C]((ab => ab match {
         case (a, b)
         => State[S, C](state => {
-          //println("...map2: ab="+ab+"  p(aPar, b)="+p(aPar, b)+"  state="+state)
           val ((a2, b2), state2): ((A, B), S) = abState.run(state)
           (f(a2, b2), state2)
         })

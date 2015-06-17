@@ -1,3 +1,5 @@
+package fp_nith
+
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ThreadFactory, ExecutorService, Executors}
 import util._
@@ -18,11 +20,11 @@ object Ch08 {
   object Phase1 {
 
     // 8.3 Assuming the following representation of Prop, implement && as aPar method of Prop.
-    trait Prop {
+    trait Prop { self =>
       def check: Boolean
 
       def &&(p: Prop): Prop = new Prop {
-        def check: Boolean = this.check && p.check
+        def check: Boolean = self.check && p.check
       }
     }
 
@@ -499,21 +501,18 @@ object nith_Chapter_08 extends App {
   logg("run(forAllPar[Par[Int]](parGen)(nPar => equal(Par.fork(nPar))(nPar)),128,128)")(run(forAllPar[Par[Int]](parGen(rngTime))(testParFork(false)), 128, 128))
 
   println("\n** Exercise 8.18 and 8.19 **")
-  /*  logg("XXX")(run(Ch08.Phase3.forAll[Int=>Boolean](intPredEvenGen)(p => {logg("...p")(p)
-      p==p
-    }),2,4))*/
   val testTakeOnly: Boolean => (Int => Boolean) => List[Int] => Boolean = debug => p => ints => {
     val result: Boolean = ints.takeOnly(p).forAll(p)
     if (debug) logg("... testTakeOnly: ints=" + List.myString(ints)
-      + "\t ints.takeOnly(p)=" + List.myString(ints.takeOnly(p))
+      + "\t ints.takeOnly(p1)=" + List.myString(ints.takeOnly(p))
       + "\tresult")(result)
     result
   }
-  logg("run(forAllAll[Int=>Boolean](intPredGen)(p => forAll[List[Int]](intListGen)(testTakeOnly(true)(p))),4,8)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(testTakeOnly(true)(p))), 4, 8))
-  logg("run(forAllAll[Int=>Boolean](intPredGen)(p => forAll[List[Int]](intListGen)(testTakeOnly(false)(p))),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(testTakeOnly(false)(p))), 32, 64))
+  logg("run(forAllAll[Int=>Boolean](intPredGen)(p1 => forAll[List[Int]](intListGen)(testTakeOnly(true)(p1))),4,8)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(testTakeOnly(true)(p))), 4, 8))
+  logg("run(forAllAll[Int=>Boolean](intPredGen)(p1 => forAll[List[Int]](intListGen)(testTakeOnly(false)(p1))),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(testTakeOnly(false)(p))), 32, 64))
 
-  logg("run(forAllAll[Int => Boolean](intPredEvenGen)(p => forAll[List[Int]](intListGen)(ints => ints.dropWhile(p).takeWhile(p)==Nil)),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(ints => ints.dropWhile(p).takeWhile(p) == Nil)), 32, 64))
-  logg("run(forAllAll[Int => Boolean](intPredEvenGen)(p => forAll[List[Int]](intListGen)(ints => ints.takeWhile(p).dropWhile(p)==Nil)),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(ints => ints.takeWhile(p).dropWhile(p) == Nil)), 32, 64))
+  logg("run(forAllAll[Int => Boolean](intPredEvenGen)(p1 => forAll[List[Int]](intListGen)(ints => ints.dropWhile(p1).takeWhile(p1)==Nil)),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(ints => ints.dropWhile(p).takeWhile(p) == Nil)), 32, 64))
+  logg("run(forAllAll[Int => Boolean](intPredEvenGen)(p1 => forAll[List[Int]](intListGen)(ints => ints.takeWhile(p1).dropWhile(p1)==Nil)),32,64)")(run(forAllAll[Int => Boolean](intPredEvenGen)(p => Ch08.Phase3.forAll[List[Int]](intListGen)(ints => ints.takeWhile(p).dropWhile(p) == Nil)), 32, 64))
 
   println()
   println("*** Not finished yet ***")

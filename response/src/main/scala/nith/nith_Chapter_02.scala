@@ -1,3 +1,5 @@
+package fp_nith
+
 import scala.annotation.tailrec
 
 object nith_Chapter_02{
