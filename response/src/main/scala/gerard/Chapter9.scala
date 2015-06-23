@@ -123,7 +123,7 @@ object Chapter9 {
 
     def char(c: Char): Parser[Char] = string(c.toString) map (_.charAt(0))
 
-    def succeed[A](a: A): Parser[A] = string("") map (_ => a)
+    def succeed[A](a: A): Parser[A]
 
     // Returns the portion of input inspected by p if successful
     def slice[A](p: Parser[A]): Parser[String]
@@ -327,6 +327,75 @@ object Chapter9 {
     // And do we always want to report both errors, or do we want to
     // give the programmer a way to specify which of the two errors is reported?
     // => we could also pimp `map` and allow mapping of the errors
+  }
+
+  case class Location(input: String, offset: Int = 0) {
+    lazy val line = input.slice(0, offset + 1).count(_ == '\n') + 1
+    lazy val col = input.slice(0, offset + 1).lastIndexOf('\n') match {
+      case -1        => offset + 1
+      case lineStart => offset - lineStart
+    }
+
+    def next: String = input.drop(offset)
+
+    def toError(msg: String): ParseError =
+      ParseError(List((this, msg)))
+  }
+
+  case class ParseError(stack: List[(Location, String)])
+
+  type Parser[+A] = Location => Result[A]
+
+  trait Result[+A]
+
+  case class Success[+A](get: A, charsConsumed: Int) extends Result[A]
+
+  case class Failure(get: ParseError) extends Result[Nothing]
+
+  // 9.13
+  // Implement string, regex, succeed, and slice for this initial representation of
+  // Parser. Note that slice is less efficient than it could be, since it must still construct a
+  // value only to discard it.
+  abstract class MyParser[+A]() {
+    def run(input: String): Either[ParseError, A]
+  }
+
+  object MyParsers extends Parsers[ParseError, Parser] {
+    // implementations of primitives go here
+    def run[A](p: Parser[A])(input: String): Either[ParseError, A] =
+      p(Location(input)) match {
+        case Success(get, charsConsumed) => Right(get)
+        case Failure(error)              => Left(error)
+      }
+
+    def flatMap[A, B](p: Parser[A])(f: (A) => Parser[B]): Parser[B] = ???
+
+    def or[A](s1: Parser[A], s2: Parser[A]): Parser[A] = ???
+
+    implicit def string(s: String): Parser[String] =
+      (location: Location) =>
+        if (location.next.startsWith(s))
+          Success(s, s.length)
+        else
+          Failure(location.toError("Expected: " + s))
+
+    def lazyParser[A](p: => Parser[A]): Parser[A] = ???
+
+    implicit def regex(R: Regex): Parser[String] =
+      (location: Location) =>
+        location.next match {
+          case R(s) => Success(s, s.length)
+          case _    => Failure(location.toError("Expected: " + R.regex))
+        }
+
+    def succeed[A](a: A): Parser[A] = (location: Location) => Success(a, 0)
+
+    def slice[A](p: Parser[A]): Parser[String] =
+      (location: Location) => p(location) match {
+        case Success(_, charsConsumed) =>
+          Success(location.input.slice(location.offset, location.offset + charsConsumed), charsConsumed)
+        case f: Failure                => f
+      }
   }
 
 }
