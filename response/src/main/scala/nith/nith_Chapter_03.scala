@@ -1,3 +1,5 @@
+package fp_nith
+
 import scala.annotation.tailrec
 import util._
 import Ch04_Option._

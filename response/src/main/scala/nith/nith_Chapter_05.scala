@@ -1,3 +1,5 @@
+package fp_nith
+
 import scala.annotation.tailrec
 import util.log
 import Ch04_Option.{None, Option, Some}
@@ -146,17 +148,7 @@ object Ch05 {
       }
       unfold[B, Stream[A]](this)(g)
     }
-/*
-    final def mapUnfold[B](p: A => Option[B]): Stream[B] = {
-      unfold[B, Stream[A]](this)(aStream => aStream match {
-        case Cons(a, aTail) => p(a()) match {
-          case Some(b) => Some((b, aTail()))
-          case _ => None
-        }
-        case _ => None
-      })
-    }
-*/
+
     final def takeUnfold(n: Int): Stream[A] = unfold[A, (Stream[A], Int)]((this, 0))(x => x._1 match {
       case Cons(a, as) if x._2 < n => Some((a(), (as(), 1 + x._2)))
       case _ => None
