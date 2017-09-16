@@ -102,7 +102,7 @@ object Chapter10 {
   def main(args: Array[String]) {
 
     def report(result: Result) = result match {
-      case Passed =>
+      case Passed                              =>
         println("ok.")
       case Falsified(failure, successes, path) =>
         println(s"ko: found counter example <$failure> (after $successes successes): $path.")
@@ -112,6 +112,10 @@ object Chapter10 {
 
     println(isOrdered(IndexedSeq(1, 3, 5, 7, 6)))
     println(isOrdered(IndexedSeq(1, 3, 5, 7, 16)))
+    println(isOrdered(IndexedSeq(1, 2, 3)))
+    println(isOrdered(IndexedSeq(1, 2, 3, 2)))
+    println(isOrdered(IndexedSeq(3, 2, 1)))
+    println(isOrdered(IndexedSeq.empty[Int]))
   }
 
   // 10.5
@@ -187,7 +191,8 @@ object Chapter10 {
 
   // 10.8 Hard: Use foldMap to detect whether a given IndexedSeq[Int] is ordered. You’ll need
   // to come up with a creative Monoid
-  def isOrdered(s: IndexedSeq[Int]): Boolean = {
+  // this solution does not work since an empty seq should be ordered!
+  def isOrderedFailed(s: IndexedSeq[Int]): Boolean = {
 
     // we store left / right intervals if ordered, None means not ordered
     val m = new Monoid[Option[(Int, Int)]] {
@@ -196,9 +201,8 @@ object Chapter10 {
       override def op(a: Option[(Int, Int)],
                       b: Option[(Int, Int)]): Option[(Int, Int)] = {
         (a, b) match {
-          case (Some(a0), None)                                 => Some(a0)
-          case (None, Some(b0))                                 => Some(b0)
-          case (None, None)                                     => None
+          case (a0, None)                                       => a0
+          case (None, b0)                                       => b0
           case (Some((left, leftEnd)), Some((right, rightEnd))) =>
             if (leftEnd <= right) {
               Some(left -> rightEnd)
@@ -214,6 +218,64 @@ object Chapter10 {
 
     val intervalOpt = foldMap(s.toList, m)((v: Int) => Some(v -> v))
     intervalOpt.isDefined
+  }
+
+  // second try
+  def isOrdered(s: IndexedSeq[Int]): Boolean = {
+
+    // we store left / right intervals and a flag if ordered, None means ordered
+    val m = new Monoid[Option[(Int, Int, Boolean)]] {
+
+      // op(op(x,y), z) == op(x, op(y,z))
+      override def op(a: Option[(Int, Int, Boolean)],
+                      b: Option[(Int, Int, Boolean)]): Option[(Int, Int, Boolean)] = {
+        (a, b) match {
+          case (a0, None)                                                                      => a0
+          case (None, b0)                                                                      => b0
+          case (Some((left, leftEnd, isLeftOrdered)), Some((right, rightEnd, isRightOrdered))) =>
+            val isCombinationOrdered = leftEnd <= right
+            Some((left, rightEnd, isLeftOrdered && isCombinationOrdered && isRightOrdered))
+        }
+      }
+
+      // op(x, zero) == x
+      override def zero: Option[(Int, Int, Boolean)] = None
+    }
+
+    val isInterval = foldMap(s.toList, m)((v: Int) => Some((v, v, true))).fold(true)(_._3)
+    isInterval
+  }
+
+  // 10.8 word count Monoid
+  sealed trait WC
+
+  case class Stub(chars: String) extends WC
+
+  /**
+    * @param lStub incomplete word at left
+    * @param rStub incomplete word at right
+    *
+    */
+  case class Part(lStub: String, words: Int, rStub: String) extends WC
+
+  val wcMonoid: Monoid[WC] = new Monoid[WC] {
+    // op(x, zero) == x
+    override def zero: WC = Part("", 0, "")
+
+    // op(op(x,y), z) == op(x, op(y,z))
+    override def op(a: WC, b: WC): WC = (a, b) match {
+      case (a: Stub, b: Stub)                               =>
+        Stub(a.chars ++ b.chars)
+      case (Part(lStub, words1, l), Part(r, words2, rStub)) =>
+        val count = words(l ++ r)
+        Part(lStub, words1 + words2 + count, rStub)
+    }
+
+
+    def words(s: String) = s.sliding(2).count {
+      s: String => s(0).isLetter && (s.size < 2 || !s(1).isLetter)
+    }
+
   }
 
 
