@@ -3,7 +3,7 @@ import Keys._
 
 
 object BuildSettings {
-  val buildScalaVersion = "2.11.6"
+  val buildScalaVersion = "2.11.11"
 
   val buildSettings = Seq(
     organization       := "com.github.julien-truffaut",
@@ -27,10 +27,9 @@ object BuildSettings {
   )}
 
 object Dependencies {
-  val scalaz            = "org.scalaz"      %% "scalaz-core"               % "7.1.0"
-  val scalaCheckBinding = "org.scalaz"      %% "scalaz-scalacheck-binding" % "7.1.0" % "test"
-  val specs2Scalacheck  = "org.specs2"      %% "specs2-scalacheck"         % "2.4"   % "test"
-  val scalazSpec2       = "org.typelevel"   %% "scalaz-specs2"             % "0.2"   % "test"
+  val cats       = "org.typelevel"   %% "cats-core"  % "0.9.0"
+  val scalaCheck = "org.scalacheck"  %% "scalacheck" % "1.13.4" % "test"
+  val scalatest  = "org.scalatest"   %% "scalatest"  % "3.0.1"  % "test"
 }
 
 object MonocleBuild extends Build {
@@ -42,21 +41,13 @@ object MonocleBuild extends Build {
     file("."),
     settings = buildSettings ++ Seq(
       publishArtifact := false
-  )) aggregate(exercice, response)
+  )) aggregate(exercice)
 
   lazy val exercice: Project = Project(
     "exercice",
     file("exercice"),
     settings = buildSettings ++ Seq(
-      libraryDependencies ++= Seq(scalaz, scalaCheckBinding, specs2Scalacheck, scalazSpec2)
-    )
-  )
-
-  lazy val response: Project = Project(
-    "response",
-    file("response"),
-    settings = buildSettings ++ Seq(
-      libraryDependencies ++= Seq(scalaz, scalaCheckBinding, specs2Scalacheck, scalazSpec2)
+      libraryDependencies ++= Seq(cats, scalaCheck, scalatest)
     )
   )
 

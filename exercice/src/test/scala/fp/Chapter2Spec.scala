@@ -1,18 +1,15 @@
 package fp
 
-import org.specs2.ScalaCheck
-import org.specs2.scalaz.Spec
-import scalaz.syntax.equal._
+import org.scalatest.FreeSpec
+import org.scalatest.prop.Checkers
 
-class Chapter2Spec extends Spec with ScalaCheck {
+class Chapter2Spec extends FreeSpec with Checkers {
 
+  "Chapter2" - {
 
-  "Chapter2" should {
-
-    "prop1" in prop{ (xs: List[Int]) =>
+    "prop1" in check{ (xs: List[Int]) =>
       xs === xs
     }
-
 
   }
 
